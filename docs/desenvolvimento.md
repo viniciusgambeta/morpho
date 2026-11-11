@@ -135,7 +135,7 @@ virtual (`camera`). Cerca de 6 GB, quase tudo bibliotecas da NVIDIA (CUDA, cuDNN
 
 ## A página e o diagnóstico
 
-**Página:** https://morpho-cam.vercel.app (projeto `morpho-cam` na Vercel). É um site
+**Página:** https://morpho.medaumexemplo.com (projeto `morpho-cam` na Vercel; o endereço https://morpho-cam.vercel.app também responde). É um site
 estático, sem etapa de montagem, na pasta `site/`: `index.html`, `faq.html`, `styles.css`,
 `app.js`. Para publicar uma mudança:
 

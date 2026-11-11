@@ -4,7 +4,7 @@ Troca de rosto ao vivo para Windows. O Morpho troca o seu rosto em tempo real na
 entrega a imagem como uma câmera comum ("Morpho Camera") para o Meet, o Zoom, o Discord e
 o OBS. Tudo roda no seu computador.
 
-**Página e download: https://morpho-cam.vercel.app**
+**Página e download: https://morpho.medaumexemplo.com**
 
 ![Janela do Morpho com a troca ao vivo](docs/telas/ao-vivo.png)
 
@@ -38,7 +38,7 @@ numa RTX 3060 de notebook; nas outras placas é estimativa.
 
 ## Baixar
 
-Pela [página](https://morpho-cam.vercel.app/#baixar): o diagnóstico confere o computador e
+Pela [página](https://morpho.medaumexemplo.com/#baixar): o diagnóstico confere o computador e
 baixa o instalador. Os arquivos também estão em
 [Releases](../../releases): baixe o `MorphoSetup.exe` e os arquivos `.bin` para a mesma
 pasta e abra o `.exe`.

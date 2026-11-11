@@ -315,7 +315,7 @@ static DWORD WINAPI DownloadThread(LPVOID)
 	if (items.empty())
 	{
 		InternetCloseHandle(session);
-		SetStage(BROKEN, L"O instalador do Morpho ainda não foi publicado. Volte em breve: o aviso sai em morpho-cam.vercel.app.");
+		SetStage(BROKEN, L"O instalador do Morpho ainda não foi publicado. Volte em breve: o aviso sai em morpho.medaumexemplo.com.");
 		return 0;
 	}
 	PWSTR downloads = NULL;
