@@ -1,0 +1,24 @@
+﻿O que o Morpho precisa
+
+- Windows 10 ou 11, de 64 bits.
+- Placa de vídeo NVIDIA (GTX 16, RTX 20, 30, 40 ou 50) com o driver atualizado e, de
+  preferência, 6 GB de memória de vídeo. Sem placa NVIDIA o app não funciona.
+- Cerca de 10 GB livres no disco.
+- Uma webcam.
+
+O que a instalação faz
+
+- Copia o app para a sua pasta de usuário (não pede permissão de administrador).
+- Cria o atalho no menu Iniciar e, se você quiser, na área de trabalho.
+
+O que acontece na primeira abertura
+
+- O app instala a câmera virtual "Morpho Camera" para o seu usuário.
+- Os modelos de detecção de rosto são copiados para a pasta .insightface do seu usuário
+  (cerca de 330 MB).
+- Os modelos são otimizados para a sua placa de vídeo. Isso leva alguns minutos e
+  acontece uma vez só; a tela avisa. (No computador em que este instalador foi criado
+  essa etapa já vem pronta.)
+
+Para desinstalar: Configurações do Windows > Aplicativos > Morpho. As suas preferências
+e a galeria de rostos ficam em AppData\Local\Morpho e não são apagadas.

@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Perguntas frequentes — Morpho</title>
+  <meta name="description" content="Dúvidas sobre o Morpho: requisitos, download, o aviso do Windows, a câmera virtual, desempenho e uso responsável.">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="canonical" href="https://morpho-cam.vercel.app/faq">
+  <meta property="og:title" content="Perguntas frequentes — Morpho">
+  <meta property="og:image" content="https://morpho-cam.vercel.app/assets/og.png">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <!-- desenhos reutilizados: o símbolo do Morpho e as marcas das plataformas -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="morpho" viewBox="64 64 384 384">
+      <path d="M134 218C136 180 164 153 204 132L280 91C314 73 350 81 370 105C389 128 385 150 382 164C379 178 387 188 399 200L414 215C421 223 419 232 409 237L395 244C389 248 389 254 395 260C400 265 398 272 390 277C384 281 381 286 385 291C390 298 383 307 372 312C357 319 345 309 336 296L303 251C276 214 239 197 197 192C169 189 146 198 134 218Z"/>
+      <path d="M378 294C376 332 348 359 308 380L232 421C198 439 162 431 142 407C123 384 127 362 130 348C133 334 125 324 113 312L98 297C91 289 93 280 103 275L117 268C123 264 123 258 117 252C112 247 114 240 122 235C128 231 131 226 127 221C122 214 129 205 140 200C155 193 167 203 176 216L209 261C236 298 273 315 315 320C343 323 366 314 378 294Z"/>
+    </symbol>
+    <symbol id="windows" viewBox="0 0 24 24"><path d="M2 2h9.5v9.5H2zM12.5 2H22v9.5h-9.5zM2 12.5h9.5V22H2zM12.5 12.5H22V22h-9.5z"/></symbol>
+    <symbol id="nvidia" viewBox="0 0 24 24"><path d="M8.948 8.798v-1.43a6.7 6.7 0 0 1 .424-.018c3.922-.124 6.493 3.374 6.493 3.374s-2.774 3.851-5.75 3.851c-.398 0-.787-.062-1.158-.185v-4.346c1.528.185 1.837.857 2.747 2.385l2.04-1.714s-1.492-1.952-4-1.952a6.016 6.016 0 0 0-.796.035m0-4.735v2.138l.424-.027c5.45-.185 9.01 4.47 9.01 4.47s-4.08 4.964-8.33 4.964c-.37 0-.733-.035-1.095-.097v1.325c.3.035.61.062.91.062 3.957 0 6.82-2.023 9.593-4.408.459.371 2.34 1.263 2.73 1.652-2.633 2.208-8.772 3.984-12.253 3.984-.335 0-.653-.018-.971-.053v1.864H24V4.063zm0 10.326v1.131c-3.657-.654-4.673-4.46-4.673-4.46s1.758-1.944 4.673-2.262v1.237H8.94c-1.528-.186-2.73 1.245-2.73 1.245s.68 2.412 2.739 3.11M2.456 10.9s2.164-3.197 6.5-3.533V6.201C4.153 6.59 0 10.653 0 10.653s2.35 6.802 8.948 7.42v-1.237c-4.84-.6-6.492-5.936-6.492-5.936z"/></symbol>
+  </svg>
+
+  <header class="nav" id="nav">
+    <div class="nav-in">
+      <a class="brand" href="/"><svg fill="currentColor"><use href="#morpho"/></svg>Morpho</a>
+      <nav class="nav-links">
+        <a href="/#recursos">Recursos</a>
+        <a href="/#como">Como funciona</a>
+        <a href="/#requisitos">Requisitos</a>
+        <a href="/faq">Perguntas</a>
+      </nav>
+      <a class="pill pill-sm" href="/#baixar">Baixar</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="faq-hero">
+      <div class="wrap">
+        <h1 class="rise">Perguntas frequentes.</h1>
+        <p class="rise d1">O que costumam perguntar sobre o Morpho. As dúvidas de compatibilidade, o diagnóstico responde em segundos.</p>
+      </div>
+    </section>
+
+    <section class="faq">
+      <div class="wrap">
+
+        <h2>Antes de baixar</h2>
+        <details open>
+          <summary>O Morpho é gratuito mesmo?</summary>
+          <div class="answer"><p>É. Não tem assinatura, conta, marca d'água nem limite de uso. O código é aberto (licença AGPL-3.0) e acompanha o instalador.</p></div>
+        </details>
+        <details>
+          <summary>Roda no meu computador?</summary>
+          <div class="answer">
+            <p>Precisa de <b>Windows 10 ou 11 de 64 bits</b> e de uma <b>placa de vídeo NVIDIA</b> (GTX 16, RTX 20, 30, 40 ou 50) com 6 GB de memória de vídeo. Com 4 GB funciona no limite. Também pede 8 GB de RAM, 13 GB livres no disco e uma webcam.</p>
+            <p>O jeito certo de saber é rodar o <a href="/downloads/MorphoDiagnostico.exe" download>diagnóstico</a>: ele confere tudo e dá uma nota.</p>
+          </div>
+        </details>
+        <details>
+          <summary>Funciona com placa AMD, com vídeo integrado Intel ou em Mac?</summary>
+          <div class="answer"><p>Não. A troca de rosto ao vivo usa tecnologias que só existem nas placas NVIDIA (CUDA e TensorRT). Sem uma, o programa nem abre a troca: ele avisa que não encontrou a placa.</p></div>
+        </details>
+        <details>
+          <summary>Notebook serve?</summary>
+          <div class="answer"><p>Serve, se tiver placa NVIDIA. O Morpho foi desenvolvido e medido num notebook com RTX 3060, onde faz 30 quadros por segundo. Deixe o notebook na tomada e no modo de desempenho: na bateria a placa de vídeo é limitada e a imagem trava.</p></div>
+        </details>
+        <details>
+          <summary>A nota do diagnóstico é confiável?</summary>
+          <div class="answer"><p>É uma estimativa. Só uma placa foi medida de verdade (a RTX 3060 de notebook); para as outras, a nota parte de comparações públicas de desempenho entre placas e de um teste rápido do seu processador. Serve para separar “roda bem”, “roda no limite” e “não roda”.</p></div>
+        </details>
+
+        <h2>Download e instalação</h2>
+        <details>
+          <summary>Por que o download tem 4 GB?</summary>
+          <div class="answer"><p>Quase tudo são as bibliotecas da NVIDIA que fazem a conta na placa de vídeo e os modelos de inteligência artificial. O instalador já leva tudo, para ninguém precisar instalar Python, CUDA ou outra coisa na mão.</p></div>
+        </details>
+        <details id="aviso">
+          <summary>O Windows mostrou “O Windows protegeu o computador”. É vírus?</summary>
+          <div class="answer">
+            <p>Não. Esse aviso aparece em qualquer programa novo que não tem um certificado digital pago, e o Morpho, por ser gratuito, ainda não tem. Para abrir:</p>
+            <ol>
+              <li>Clique em <b>Mais informações</b>.</li>
+              <li>Clique em <b>Executar assim mesmo</b>.</li>
+            </ol>
+            <p>Há uma <a href="/#aviso">animação mostrando os dois cliques</a> na página inicial. O aviso aparece no diagnóstico e no instalador, uma vez em cada.</p>
+          </div>
+        </details>
+        <details>
+          <summary>O navegador bloqueou ou escondeu o download.</summary>
+          <div class="answer"><p>Pelo mesmo motivo do aviso do Windows, alguns navegadores dizem que o arquivo “não é baixado com frequência”. Abra a lista de downloads do navegador, clique nos três pontos ao lado do arquivo e escolha <b>Manter</b>.</p></div>
+        </details>
+        <details>
+          <summary>Como sei que o arquivo que baixei é o original?</summary>
+          <div class="answer"><p>Cada arquivo do instalador tem uma impressão digital (SHA-256) publicada na <a href="/#baixar">seção de download</a>. O diagnóstico confere essa impressão sozinho ao terminar de baixar e apaga o que vier diferente. Se você baixar manualmente, pode conferir no PowerShell com <b>Get-FileHash</b>.</p></div>
+        </details>
+        <details>
+          <summary>O download caiu no meio. Perco tudo?</summary>
+          <div class="answer"><p>Não. Abra o diagnóstico de novo e clique em “Baixar o Morpho”: ele continua de onde parou. Os arquivos ficam em <b>Downloads\Morpho</b>.</p></div>
+        </details>
+        <details>
+          <summary>Precisa de senha de administrador para instalar?</summary>
+          <div class="answer"><p>Não. O Morpho é instalado só para o seu usuário, na sua pasta do Windows. A câmera virtual também é registrada só para você.</p></div>
+        </details>
+        <details>
+          <summary>A primeira abertura demorou vários minutos. É normal?</summary>
+          <div class="answer"><p>É, e só acontece uma vez. Na primeira abertura o Morpho otimiza os modelos para a sua placa de vídeo, e a tela avisa que isso está acontecendo. Das próximas vezes ele abre em alguns segundos.</p></div>
+        </details>
+        <details>
+          <summary>Como desinstalo?</summary>
+          <div class="answer"><p>Em <b>Configurações do Windows › Aplicativos › Aplicativos instalados</b>, procure Morpho e clique em Desinstalar. Isso também tira a câmera “Morpho Camera” do Windows. As suas preferências ficam em AppData\Local\Morpho e podem ser apagadas à mão.</p></div>
+        </details>
+
+        <h2>Usando</h2>
+        <details>
+          <summary>Como uso no Meet, no Zoom, no Discord ou no OBS?</summary>
+          <div class="answer">
+            <ol>
+              <li>No Morpho, escolha um rosto e clique em <b>Trocar rostos</b>.</li>
+              <li>No outro programa, abra as configurações de vídeo e escolha a câmera <b>Morpho Camera</b>.</li>
+            </ol>
+            <p>Pode escolher a câmera antes de iniciar a troca: enquanto o Morpho não está no ar, o outro programa mostra uma tela escura de “Câmera em pausa”.</p>
+          </div>
+        </details>
+        <details>
+          <summary>A câmera “Morpho Camera” não aparece na lista.</summary>
+          <div class="answer"><p>Ela é instalada na primeira vez que o Morpho abre. Programas que já estavam abertos nessa hora só passam a listá-la depois de fechados e abertos de novo (no navegador, feche todas as janelas). Programas executados “como administrador” não a enxergam.</p></div>
+        </details>
+        <details>
+          <summary>O meu rosto de verdade pode aparecer sem querer?</summary>
+          <div class="answer"><p>O Morpho foi feito para isso não acontecer. Com a opção “Borrar se a troca falhar” ligada (ela vem ligada), qualquer quadro em que a troca não pôde ser feita sai borrado. Há ainda o botão <b>Borrar agora</b> (tecla B), que borra tudo na hora. Mesmo assim, nenhuma proteção é perfeita: teste antes de usar com outras pessoas.</p></div>
+        </details>
+        <details>
+          <summary>A imagem está travando ou lenta.</summary>
+          <div class="answer">
+            <ul>
+              <li>Feche jogos e programas que usam a placa de vídeo.</li>
+              <li>Em notebook, ligue na tomada e use o modo de desempenho.</li>
+              <li>Troque a qualidade para <b>Leve</b>.</li>
+              <li>Melhore a luz: muitas webcams caem para 15 ou 20 quadros por segundo no escuro, e nenhum ajuste passa do que a câmera entrega.</li>
+            </ul>
+            <p>O botão “Detalhes”, no canto da janela, mostra onde está o gargalo.</p>
+          </div>
+        </details>
+        <details>
+          <summary>Que foto devo usar?</summary>
+          <div class="answer"><p>Uma foto nítida, de frente, bem iluminada, com o rosto inteiro e sem óculos escuros ou mão na frente. Fotos em close também funcionam. Se o Morpho não achar um rosto na foto, ele avisa e mantém o anterior.</p></div>
+        </details>
+
+        <h2>Privacidade e uso</h2>
+        <details>
+          <summary>As imagens da minha câmera vão para a internet?</summary>
+          <div class="answer"><p>Não. Todo o processamento acontece no seu computador, e o Morpho funciona sem internet depois de instalado. A única coisa que usa a rede é o diagnóstico, para baixar o instalador.</p></div>
+        </details>
+        <details>
+          <summary>Posso usar a foto de qualquer pessoa?</summary>
+          <div class="answer"><p>Use apenas fotos de quem autorizou. Não use o Morpho para se passar por outra pessoa, enganar alguém, burlar verificações de identidade ou criar conteúdo que prejudique terceiros. Além de errado, em muitos casos é crime.</p></div>
+        </details>
+        <details>
+          <summary>Posso usar comercialmente?</summary>
+          <div class="answer"><p>Não. Os modelos de inteligência artificial que o Morpho usa (InsightFace e HyperSwap) são licenciados apenas para uso pessoal e de pesquisa, não comercial.</p></div>
+        </details>
+        <details>
+          <summary>Onde está o código-fonte?</summary>
+          <div class="answer"><p>Dentro do próprio instalador: depois de instalar, as pastas <b>app</b> e <b>engine</b> trazem o código do app e do motor, e a pasta <b>licencas</b> traz as licenças e o código da câmera virtual. O Morpho é construído sobre o Deep-Live-Cam e o fork beekamai/DeepLiveCam.</p></div>
+        </details>
+
+        <div class="end">
+          <p>Pronto para testar?</p>
+          <a class="pill" href="/#baixar"><svg fill="currentColor"><use href="#windows"/></svg>Baixar para Windows</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <p>Gratuito e de código aberto (AGPL-3.0). Construído sobre o Deep-Live-Cam e o fork beekamai/DeepLiveCam, com modelos do InsightFace e do FaceFusion (HyperSwap), de uso não comercial, e uma câmera virtual derivada do Unity Capture.</p>
+      <p>Windows é marca registrada da Microsoft. NVIDIA, GeForce, GTX e RTX são marcas registradas da NVIDIA Corporation. O Morpho é um projeto independente, sem vínculo com essas empresas.</p>
+      <hr>
+      <div class="links">
+        <a href="/#recursos">Recursos</a>
+        <a href="/#como">Como funciona</a>
+        <a href="/#requisitos">Requisitos</a>
+        <a href="/#aviso">Aviso do Windows</a>
+        <a href="/faq">Perguntas frequentes</a>
+        <a href="https://github.com/viniciusgambeta/morpho" id="source" hidden>Código-fonte</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+Morpho - o que vai dentro deste pacote e sob quais licencas
+=============================================================
+
+O app (pasta "app") e o motor de troca de rosto (pasta "engine")
+    O motor e o projeto beekamai/DeepLiveCam (https://github.com/beekamai/DeepLiveCam),
+    derivado do Deep-Live-Cam (https://github.com/hacksider/Deep-Live-Cam), sob a licenca
+    GNU AGPL versao 3. O app Morpho usa esse motor e por isso segue a mesma licenca.
+    O texto esta em AGPL-3.0.txt. O codigo-fonte dos dois vai neste mesmo pacote, nas
+    pastas "app" e "engine".
+
+A camera virtual (pasta "camera")
+    Derivada do filtro do Unity Capture (https://github.com/schellingb/UnityCapture), de
+    Bernhard Schelling, sob a licenca MIT. O codigo-fonte, com o aviso de direitos autorais
+    e o texto da licenca, esta em "fonte-da-camera-virtual".
+
+O Python e as bibliotecas (pasta "python")
+    Python (licenca PSF, em Python.txt) e bibliotecas de terceiros, cada uma com a propria
+    licenca na pasta python\Lib\site-packages\<nome>-<versao>.dist-info. As principais:
+    ONNX Runtime (MIT), OpenCV (Apache 2.0), NumPy (BSD), Qt for Python / PySide6 (LGPL),
+    insightface (MIT), e as bibliotecas da NVIDIA (CUDA, cuDNN e TensorRT), distribuidas
+    sob os termos da propria NVIDIA.
+
+Os modelos (pasta "engine\models")
+    Os modelos de troca de rosto (HyperSwap) e de analise de rosto (insightface buffalo_l)
+    sao de uso NAO COMERCIAL (pesquisa e uso pessoal).
+
+Uso responsavel
+    Use somente com o consentimento de quem aparece na foto de origem, e deixe claro para
+    os outros quando uma imagem foi alterada.

@@ -1,0 +1,5 @@
+{
+  "version": "1.0.0",
+  "note": "Lista de arquivos do instalador. O diagnostico e a pagina leem este arquivo; enquanto 'files' estiver vazio, o download direto fica desligado.",
+  "files": []
+}

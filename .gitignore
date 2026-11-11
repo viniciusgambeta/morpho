@@ -1,0 +1,11 @@
+# arquivos gerados
+__pycache__/
+*.pyc
+
+# ferramentas e ligações locais
+.claude/
+site/.vercel/
+site/.env*
+
+# medições feitas no computador de desenvolvimento
+bench/results/
