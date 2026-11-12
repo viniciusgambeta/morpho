@@ -8,7 +8,7 @@ o OBS. Tudo roda no seu computador.
 
 ![Janela do Morpho com a troca ao vivo](docs/telas/ao-vivo.png)
 
-*Os rostos das capturas foram gerados por IA; não são de pessoas reais.*
+*Gravação e rostos usados com autorização.*
 
 ## O que ele faz
 

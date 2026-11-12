@@ -98,7 +98,10 @@ Matrix na abertura e enquanto a troca inicia; Gritando quando a abertura termina
 enquanto falta escolher o rosto; Parado com tudo pronto e no cabeçalho; Dormindo se o motor
 parar. A passagem de uma para outra tem um pulinho (`Mascot.switch` em `app/ui/widgets.py`).
 
-Capturas da interface em `docs/telas/`.
+Capturas da interface em `docs/telas/`. Quem gera é `bench/make_screenshots.py`: abre a janela
+de verdade, sem mostrá-la, com um vídeo no lugar da webcam, e grava várias opções de cada tela
+para escolher. As que estão no repositório usam a gravação e os rostos da demonstração da
+página, todos com autorização; em material público, só o que foi autorizado.
 
 ## A câmera virtual "Morpho Camera"
 
