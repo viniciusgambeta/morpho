@@ -27,11 +27,11 @@
 
 using namespace Gdiplus;
 
-// ---- cores e medidas (as mesmas do app) ---------------------------------------------------
-static const Color WINDOW(255, 14, 16, 20), CARD(255, 26, 30, 38), BORDER(255, 38, 43, 55), FIELD(255, 35, 40, 52);
-static const Color INK(255, 233, 235, 241), MUTED(255, 152, 161, 179), FAINT(255, 107, 115, 133);
-static const Color ACCENT(255, 124, 156, 255), GO(255, 34, 197, 94), GO_HOVER(255, 46, 212, 107);
-static const Color STOP(255, 239, 68, 68), AMBER(255, 245, 180, 83);
+// ---- cores e medidas (as mesmas do app, tema escuro: preto, branco e cinzas, com verde nos detalhes) ----
+static const Color WINDOW(255, 11, 11, 12), CARD(255, 24, 24, 26), BORDER(255, 41, 41, 45), FIELD(255, 34, 34, 37);
+static const Color INK(255, 243, 243, 244), MUTED(255, 162, 162, 168), FAINT(255, 108, 108, 115);
+static const Color ACCENT(255, 214, 214, 218), GO(255, 47, 214, 117), GO_HOVER(255, 75, 227, 139);
+static const Color STOP(255, 240, 70, 60), AMBER(255, 242, 178, 76);
 static const int WIDTH = 860;   // largura util da janela, em pixels logicos
 
 // ---- estado -------------------------------------------------------------------------------
@@ -479,7 +479,7 @@ static void Mark(Graphics &g, Level level, REAL x, REAL y, REAL size)
 {
 	SolidBrush brush(LevelColor(level));
 	g.FillEllipse(&brush, x, y, size, size);
-	Pen pen(Color(255, 14, 16, 20), S(2));
+	Pen pen(Color(255, 11, 11, 12), S(2));
 	pen.SetStartCap(LineCapRound);
 	pen.SetEndCap(LineCapRound);
 	pen.SetLineJoin(LineJoinRound);
@@ -503,12 +503,12 @@ static void Mark(Graphics &g, Level level, REAL x, REAL y, REAL size)
 
 static void DrawButton(Graphics &g, RECT &where, RectF box, const std::wstring &label, bool primary, Button id, bool enabled = true)
 {
-	Color fill = primary ? (g_hover == id ? GO_HOVER : GO) : (g_hover == id ? Color(255, 46, 52, 66) : FIELD);
+	Color fill = primary ? (g_hover == id ? GO_HOVER : GO) : (g_hover == id ? Color(255, 48, 48, 52) : FIELD);
 	if (!enabled) fill = FIELD;
 	if (g_pressed == id && enabled) fill = Color(255, (BYTE)(fill.GetR() * 0.88), (BYTE)(fill.GetG() * 0.88), (BYTE)(fill.GetB() * 0.88));
 	Fill(g, box, S(10), fill);
 	if (!primary) Stroke(g, box, S(10), BORDER);
-	Write(g, label, 14, primary, !enabled ? FAINT : primary ? Color(255, 6, 33, 15) : INK, box, StringAlignmentCenter, StringAlignmentCenter);
+	Write(g, label, 14, primary, !enabled ? FAINT : primary ? Color(255, 4, 33, 15) : INK, box, StringAlignmentCenter, StringAlignmentCenter);
 	SetRect(&where, (int)box.X, (int)box.Y, (int)(box.X + box.Width), (int)(box.Y + box.Height));
 }
 

@@ -1,5 +1,114 @@
 {
   "version": "1.0.0",
-  "note": "Lista de arquivos do instalador. O diagnostico e a pagina leem este arquivo; enquanto 'files' estiver vazio, o download direto fica desligado.",
-  "files": []
+  "source": "https://github.com/viniciusgambeta/morpho",
+  "files": [
+    {
+      "name": "MorphoSetup.exe",
+      "url": "https://github.com/viniciusgambeta/morpho/releases/download/v1.0.0/MorphoSetup.exe",
+      "size": 4576903,
+      "sha256": "e482a42a70ee605f12fb72a187bd45563c172340bf5bab9a3f49b0d4c0820204"
+    },
+    {
+      "name": "MorphoSetup-1.bin",
+      "url": "https://github.com/viniciusgambeta/morpho/releases/download/v1.0.0/MorphoSetup-1.bin",
+      "size": 263858176,
+      "sha256": "5649cd53cf1e65293547977b807cb2d63e656016a12aa989a861a590bf6e4cfc"
+    },
+    {
+      "name": "MorphoSetup-2.bin",
+      "url": "https://github.com/viniciusgambeta/morpho/releases/download/v1.0.0/MorphoSetup-2.bin",
+      "size": 268435456,
+      "sha256": "d8a61131369fcc8ffa91baf52938eb23c300583943f7b7e4287b07d17bf26558"
+    },
+    {
+      "name": "MorphoSetup-3.bin",
+      "url": "https://github.com/viniciusgambeta/morpho/releases/download/v1.0.0/MorphoSetup-3.bin",
+      "size": 268435456,
+      "sha256": "61a5a5fbfa49c66efc1c1a61e7adf6ab3ea3e47c4e07fd06f480f9f9e339c621"
+    },
+    {
+      "name": "MorphoSetup-4.bin",
+      "url": "https://github.com/viniciusgambeta/morpho/releases/download/v1.0.0/MorphoSetup-4.bin",
+      "size": 268435456,
+      "sha256": "a1649360ab43e23155e7015da85aa4a3582c1781a0f3a20da488f2df2465b8f6"
+    },
+    {
+      "name": "MorphoSetup-5.bin",
+      "url": "https://github.com/viniciusgambeta/morpho/releases/download/v1.0.0/MorphoSetup-5.bin",
+      "size": 268435456,
+      "sha256": "e53495f5a5622bf642836a69e50fe2afff1b105f0b47458f842234354da1cb8d"
+    },
+    {
+      "name": "MorphoSetup-6.bin",
+      "url": "https://github.com/viniciusgambeta/morpho/releases/download/v1.0.0/MorphoSetup-6.bin",
+      "size": 268435456,
+      "sha256": "7589317c66edc015f2e5197909034a5896dc8d84b887f823a9e6471f784a9bc2"
+    },
+    {
+      "name": "MorphoSetup-7.bin",
+      "url": "https://github.com/viniciusgambeta/morpho/releases/download/v1.0.0/MorphoSetup-7.bin",
+      "size": 268435456,
+      "sha256": "f1cc11482dc8f303d1703a47619de059ff7a3ef971688289ae3d174d50e7e5f6"
+    },
+    {
+      "name": "MorphoSetup-8.bin",
+      "url": "https://github.com/viniciusgambeta/morpho/releases/download/v1.0.0/MorphoSetup-8.bin",
+      "size": 268435456,
+      "sha256": "2fe3b92117691f10289174899ba56301f08ece103b7edcbe991cc393e14950ad"
+    },
+    {
+      "name": "MorphoSetup-9.bin",
+      "url": "https://github.com/viniciusgambeta/morpho/releases/download/v1.0.0/MorphoSetup-9.bin",
+      "size": 268435456,
+      "sha256": "883db315019c42c9f12a302ca96631b36505f601dd0188ac03b65bcc3717c330"
+    },
+    {
+      "name": "MorphoSetup-10.bin",
+      "url": "https://github.com/viniciusgambeta/morpho/releases/download/v1.0.0/MorphoSetup-10.bin",
+      "size": 268435456,
+      "sha256": "cc23123c2a5385f41034a9ab39db41386da0ccc2a5b544d18d0761b1a475dfce"
+    },
+    {
+      "name": "MorphoSetup-11.bin",
+      "url": "https://github.com/viniciusgambeta/morpho/releases/download/v1.0.0/MorphoSetup-11.bin",
+      "size": 268435456,
+      "sha256": "1b9f21c1c005c825d7d907277b6913f05a2b6c60d07acd5eed31cc5105059308"
+    },
+    {
+      "name": "MorphoSetup-12.bin",
+      "url": "https://github.com/viniciusgambeta/morpho/releases/download/v1.0.0/MorphoSetup-12.bin",
+      "size": 268435456,
+      "sha256": "e6e43bbe65049a620a2f46627b4189c614196f9467a7ec8c71224f1124eb8425"
+    },
+    {
+      "name": "MorphoSetup-13.bin",
+      "url": "https://github.com/viniciusgambeta/morpho/releases/download/v1.0.0/MorphoSetup-13.bin",
+      "size": 268435456,
+      "sha256": "0549bb2eebc6f9228e6332436c6e56a05dd6e738abf94ae3893e1b7685656f5a"
+    },
+    {
+      "name": "MorphoSetup-14.bin",
+      "url": "https://github.com/viniciusgambeta/morpho/releases/download/v1.0.0/MorphoSetup-14.bin",
+      "size": 268435456,
+      "sha256": "d5675a1522d35fa87deb70c70ec170c01d132bf74c760d6ac742675f6bc06110"
+    },
+    {
+      "name": "MorphoSetup-15.bin",
+      "url": "https://github.com/viniciusgambeta/morpho/releases/download/v1.0.0/MorphoSetup-15.bin",
+      "size": 268435456,
+      "sha256": "6da63519b14718798b131483dbd7b6541d548bb2d56198a179596bbf13a94117"
+    },
+    {
+      "name": "MorphoSetup-16.bin",
+      "url": "https://github.com/viniciusgambeta/morpho/releases/download/v1.0.0/MorphoSetup-16.bin",
+      "size": 268435456,
+      "sha256": "a4bdf9c06649e01fa88d5bf8e0c2910671ba2ce5a5e704144dad56a6af997df3"
+    },
+    {
+      "name": "MorphoSetup-17.bin",
+      "url": "https://github.com/viniciusgambeta/morpho/releases/download/v1.0.0/MorphoSetup-17.bin",
+      "size": 3817039,
+      "sha256": "6f23e7f86a9c347d18c08a0bdb262843f58742a091e15bc7c71da2dda0e1fcd6"
+    }
+  ]
 }
