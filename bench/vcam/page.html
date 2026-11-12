@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Medição da câmera virtual</title>
+<style>
+  body { margin: 0; background: #111; color: #ddd; font: 14px/1.4 system-ui, sans-serif; }
+  video { width: 480px; height: 270px; background: #000; margin: 8px; }
+  pre { margin: 8px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<video id="localView" muted autoplay playsinline></video>
+<video id="remoteView" muted autoplay playsinline></video>
+<pre id="out"></pre>
+<script>
+// Pega SÓ a câmera de teste, pelo nome, e mede os quadros como chegam à página (local) e como
+// chegam depois de uma chamada WebRTC feita dentro da própria página (remoto).
+const query = new URLSearchParams(location.search);
+const MODE = query.get('mode') || 'meet';
+const SECONDS = +(query.get('seconds') || 12);
+const CAMERA = 'Morpho Camera Teste';
+const BITS = 16, BLOCKS = 32;
+
+function say(text) {
+  document.getElementById('out').textContent += text + '\n';
+  navigator.sendBeacon('/log', text);
+}
+function report(data) {
+  return fetch('/result', { method: 'POST', body: JSON.stringify(data) });
+}
+
+// O número do quadro está em 16 blocos na metade esquerda da faixa de cima da imagem.
+const probe = new OffscreenCanvas(BITS * 8, 8);
+const probeCtx = probe.getContext('2d', { willReadFrequently: true });
+function frameNumber(source, width, height) {
+  try {
+    probeCtx.drawImage(source, 0, 0, width / BLOCKS * BITS, height / 18, 0, 0, BITS * 8, 8);
+    const pixels = probeCtx.getImageData(0, 4, BITS * 8, 1).data;
+    let number = 0;
+    for (let bit = 0; bit < BITS; bit++) if (pixels[(bit * 8 + 4) * 4] > 128) number |= 1 << bit;
+    return number;
+  } catch (error) { return -1; }
+}
+
+// Lê os quadros de uma trilha por SECONDS segundos: chegada (ms), carimbo (ms) e número.
+async function measure(track) {
+  const reader = new MediaStreamTrackProcessor({ track }).readable.getReader();
+  const series = { t: [], ts: [], n: [], w: 0, h: 0 };
+  let started = 0;
+  for (;;) {
+    const { value: frame, done } = await reader.read();
+    if (done) break;
+    const now = performance.now();
+    if (!started) started = now;
+    series.t.push(+now.toFixed(2));
+    series.ts.push(frame.timestamp / 1000);
+    series.n.push(frameNumber(frame, frame.displayWidth, frame.displayHeight));
+    series.w = frame.displayWidth; series.h = frame.displayHeight;
+    frame.close();
+    if (now - started >= SECONDS * 1000) break;
+  }
+  reader.cancel().catch(() => {});
+  return series;
+}
+
+// O que o elemento de vídeo de fato mostra (a tela da outra pessoa).
+function watch(video) {
+  const series = { t: [], ts: [], n: [] };
+  let started = 0, stop = false;
+  const step = (now, meta) => {
+    if (stop) return;
+    if (!started) started = now;
+    series.t.push(+now.toFixed(2));
+    series.ts.push(+(meta.mediaTime * 1000).toFixed(2));
+    series.n.push(frameNumber(video, video.videoWidth, video.videoHeight));
+    if (now - started < SECONDS * 1000) video.requestVideoFrameCallback(step);
+  };
+  video.requestVideoFrameCallback(step);
+  return { series, end() { stop = true; } };
+}
+
+async function main() {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  const camera = devices.find(d => d.kind === 'videoinput' && d.label.includes(CAMERA));
+  if (!camera) {
+    return report({ error: 'câmera de teste não encontrada', seen: devices.filter(d => d.kind === 'videoinput').map(d => d.label) });
+  }
+  // Os pedidos do Google Meet (vistos em chrome://webrtc-internals): 720p, 24 quadros por segundo.
+  const video = MODE === 'meet'
+    ? { deviceId: { exact: camera.deviceId }, advanced: [{ frameRate: { min: 24 } }, { height: { min: 720 } }, { width: { min: 1280 } },
+        { frameRate: { max: 24 } }, { width: { max: 1280 } }, { height: { max: 720 } }, { aspectRatio: { exact: 1.77778 } }] }
+    : { deviceId: { exact: camera.deviceId }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } };
+  const stream = await navigator.mediaDevices.getUserMedia({ video });
+  const track = stream.getVideoTracks()[0];
+  const settings = track.getSettings();
+  say('câmera aberta: ' + JSON.stringify(settings));
+  document.getElementById('localView').srcObject = stream;
+
+  // A chamada dentro da página: um lado envia a câmera, o outro recebe.
+  const a = new RTCPeerConnection(), b = new RTCPeerConnection();
+  a.onicecandidate = e => e.candidate && b.addIceCandidate(e.candidate);
+  b.onicecandidate = e => e.candidate && a.addIceCandidate(e.candidate);
+  const remoteTrack = new Promise(resolve => { b.ontrack = e => resolve(e.track); });
+  a.addTrack(track, stream);
+  await a.setLocalDescription(await a.createOffer());
+  await b.setRemoteDescription(a.localDescription);
+  await b.setLocalDescription(await b.createAnswer());
+  await a.setRemoteDescription(b.localDescription);
+  const received = await remoteTrack;
+  const remoteView = document.getElementById('remoteView');
+  remoteView.srcObject = new MediaStream([received]);
+  await new Promise(resolve => setTimeout(resolve, 2500));   // deixa a chamada estabilizar antes de medir
+  say('medindo por ' + SECONDS + ' s');
+
+  const shown = watch(remoteView), shownLocal = watch(document.getElementById('localView'));
+  // O ritmo com que a própria página consegue desenhar (60 por segundo quando o navegador está folgado).
+  const paint = { t: [] };
+  let painting = true;
+  requestAnimationFrame(function tick(now) { paint.t.push(+now.toFixed(2)); if (painting) requestAnimationFrame(tick); });
+  const [local, remote] = await Promise.all([measure(track.clone()), measure(received.clone())]);
+  shown.end(); shownLocal.end(); painting = false;
+
+  const pick = (report, type, kind) => [...report.values()].find(s => s.type === type && s.kind === kind) || {};
+  const inbound = pick(await b.getStats(), 'inbound-rtp', 'video');
+  const outbound = pick(await a.getStats(), 'outbound-rtp', 'video');
+  const keep = (stats, names) => Object.fromEntries(names.filter(n => n in stats).map(n => [n, stats[n]]));
+  await report({
+    settings, local, remote, shown: shown.series, shownLocal: shownLocal.series, paint,
+    inbound: keep(inbound, ['framesReceived', 'framesDecoded', 'framesDropped', 'framesPerSecond', 'freezeCount', 'totalFreezesDuration',
+      'pauseCount', 'totalPausesDuration', 'jitter', 'jitterBufferDelay', 'jitterBufferEmittedCount', 'frameWidth', 'frameHeight', 'decoderImplementation']),
+    outbound: keep(outbound, ['framesEncoded', 'framesSent', 'framesPerSecond', 'frameWidth', 'frameHeight', 'qualityLimitationReason', 'encoderImplementation', 'hugeFramesSent']),
+  });
+  say('resultado enviado');
+}
+main().catch(error => { say('falha: ' + error); report({ error: String(error && error.stack || error) }); });
+</script>
+</body>
+</html>

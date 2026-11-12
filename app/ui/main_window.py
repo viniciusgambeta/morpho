@@ -11,7 +11,7 @@ from typing import List, Optional
 from PySide6.QtCore import QEvent, QStandardPaths, Qt, QTimer
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
-    QComboBox, QFileDialog, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget,
+    QComboBox, QFileDialog, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QStackedWidget, QVBoxLayout, QWidget,
 )
 
 from app import APP_NAME, paths
@@ -22,12 +22,13 @@ from app.ui import theme
 from app.ui.engine_process import EngineProcess
 from app.ui.settings import Settings
 from app.ui.widgets import (
-    CameraPreview, Card, CollapsibleCard, FaceGallery, FrameView, Logo, PrimaryButton, Segmented, SideScroll,
-    SliderRow, SwitchRow, app_icon,
+    CameraPreview, Card, FaceGallery, FrameView, IconButton, Mascot, PrimaryButton, Segmented, SideScroll,
+    SliderRow, SwitchRow, app_icon, play_honk,
 )
 
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".bmp", ".webp")
 QUALITY_CHOICES = [("480p", "Leve"), ("720p", "Padrão"), ("1080p", "Nítida")]
+THEME_CHOICES = [("dark", "Escuro"), ("light", "Claro")]
 AUTOSAVE_SECONDS = 5     # intervalo de gravação das medições com a janela aberta
 TOAST_SECONDS = 4.5      # tempo de um recado passageiro no palco
 # Nomes que costumam ser câmera virtual ou de outro aparelho: ficam por último
@@ -52,19 +53,19 @@ OPTIMIZING_AFTER_SECONDS = 12.0
 
 
 def suggest_camera(names: List[str], remembered: Optional[str]) -> Optional[str]:
-    """A câmera lembrada, se ainda existe; senão a que mais parece uma webcam comum."""
+    """A câmera lembrada, se ainda existe. Sem lembrança, só escolhe sozinho quando não há dúvida.
+
+    Com mais de uma webcam de verdade ligada, quem escolhe é a pessoa: a lista fica em
+    "Escolha a câmera" e as opções de qualidade só aparecem depois da escolha.
+    """
     if remembered in names:
         return remembered
-    if not names:
-        return None
-
-    def score(name: str) -> int:
-        lowered = name.lower()
-        if any(word in lowered for word in UNLIKELY_CAMERA):
-            return 0
-        return 2 if "webcam" in lowered else 1
-
-    return max(names, key=score)   # em empate, a primeira da lista
+    if remembered:   # nome parcial, vindo da linha de comando
+        partial = [name for name in names if str(remembered).lower() in name.lower()]
+        if partial:
+            return partial[0]
+    likely = [name for name in names if not any(word in name.lower() for word in UNLIKELY_CAMERA)]
+    return likely[0] if len(likely) == 1 else None
 
 
 class MainWindow(QWidget):
@@ -73,8 +74,10 @@ class MainWindow(QWidget):
         self.args = args
         self.settings = Settings.load()
         self.setWindowTitle(APP_NAME)
+        if getattr(args, "theme", None):
+            self.settings.theme = args.theme
         self.setWindowIcon(app_icon())
-        self.setStyleSheet(theme.STYLE)
+        self.setStyleSheet(theme.apply(self.settings.theme))
         self.setAcceptDrops(True)
         self.setMinimumSize(980, 620)
         geometry = self.settings.window
@@ -149,9 +152,11 @@ class MainWindow(QWidget):
         self.engine = EngineProcess()   # criado antes da tela: os textos consultam o caminho do log
         self._build()
         self._load_cameras()
-        self.gallery.set_faces(self.settings.faces, self.settings.face)
+        self.show_gallery()
         if self.settings.face:
             self.face_note = "Analisando a foto…"
+        if getattr(args, "open_settings", False):
+            self.pages.setCurrentIndex(1)
 
         self.engine.event.connect(self.on_event)
         self.engine.output.connect(self.on_output)
@@ -196,6 +201,7 @@ class MainWindow(QWidget):
     def _build(self) -> None:
         s = self.settings
         self.view = FrameView()
+        self.view.intro_done.connect(self.refresh)
         self.photo_button = QPushButton("Tirar foto")
         self.photo_button.setObjectName("overlay")
         self.photo_button.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -221,131 +227,20 @@ class MainWindow(QWidget):
         left.addWidget(self.view, 1)
         left.addWidget(self.details, 0)
 
-        # 1 · rosto
-        self.gallery = FaceGallery()
-        self.gallery.picked.connect(self.choose_face)
-        self.gallery.add_requested.connect(self.browse_face)
-        self.gallery.remove_requested.connect(self.remove_face)
-        self.face_label = QLabel()
-        self.face_label.setObjectName("note")
-        self.face_label.setWordWrap(True)
-        face_card = Card("Rosto")
-        face_card.add(self.gallery)
-        face_card.add(self.face_label)
-
-        # 2 · câmera
-        self.cameras = QComboBox()
-        # A largura da lista é a da coluna, não a do nome mais comprido.
-        self.cameras.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
-        self.cameras.setMinimumContentsLength(8)
-        self.cameras.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.cameras.currentTextChanged.connect(self.on_camera_changed)
-        refresh_cameras = QPushButton("Atualizar")
-        refresh_cameras.setObjectName("small")
-        refresh_cameras.setCursor(Qt.CursorShape.PointingHandCursor)
-        refresh_cameras.setToolTip("Procurar câmeras de novo")
-        refresh_cameras.clicked.connect(self._load_cameras)
-        camera_row = QHBoxLayout()
-        camera_row.setSpacing(8)
-        camera_row.addWidget(self.cameras, 1)
-        camera_row.addWidget(refresh_cameras, 0)
-        camera_holder = QWidget()
-        camera_holder.setLayout(camera_row)
-        camera_row.setContentsMargins(0, 0, 0, 0)
-        self.quality = Segmented(QUALITY_CHOICES, s.resolution)
-        self.quality.setToolTip("Tamanho da imagem pedida à câmera. Leve = 480p, Padrão = 720p, Nítida = 1080p.")
-        self.quality.changed.connect(self.on_camera_option_changed)
-        self.mirror = SwitchRow("Espelhar a imagem", s.mirror)
-        self.mirror.toggled.connect(self.on_camera_option_changed)
-        self.camera_view = CameraPreview()
-        self.camera_view.setToolTip("A imagem da câmera, como ela chega. Aparece só aqui: não vai para a câmera virtual.")
-        self.preview_row = SwitchRow("Mostrar a prévia da câmera", s.preview)
-        self.preview_row.setToolTip("Com a prévia, a câmera fica ligada enquanto o app está aberto,\n"
-                                    "para você conferir qual é a câmera e o enquadramento.\n"
-                                    "Desligada, a câmera só liga quando a troca começa.")
-        self.preview_row.toggled.connect(self.on_preview_toggled)
-        camera_card = Card("Câmera")
-        camera_card.add(camera_holder)
-        camera_card.add(self.camera_view)
-        camera_card.add(self.quality)
-        camera_card.add(self.mirror)
-        camera_card.add(self.preview_row)
-
-        # 3 · saída
-        self.vcam_row = SwitchRow("Câmera virtual", s.virtual_camera)
-        self.vcam_row.switch.setEnabled(False)   # só depois que o motor disser se ela existe aqui
-        self.vcam_row.toggled.connect(self.on_output_changed)
-        self.protect_row = SwitchRow("Borrar se a troca falhar", s.protect)
-        self.protect_row.setToolTip("Quando o rosto não é encontrado (mão na frente, cabeça muito virada, você fora\n"
-                                    "do quadro), a imagem sai borrada em vez de mostrar o rosto real.\n"
-                                    "Vale para a janela e para a câmera virtual.")
-        self.protect_row.toggled.connect(self.on_output_changed)
-        output_card = Card("Saída")
-        output_card.add(self.vcam_row)
-        output_card.add(self.protect_row)
-
-        # 4 · ajustes
-        self.sharpness = SliderRow("Nitidez", s.sharpness, "Realça os detalhes do rosto trocado.")
-        self.intensity = SliderRow("Intensidade da troca", s.intensity,
-                                   "100% mostra só o rosto escolhido. Abaixo disso ele se mistura com o seu.")
-        self.mouth = SliderRow("Minha boca", s.mouth,
-                               "Deixa a sua boca de verdade aparecer: a fala fica mais natural, mas é a sua boca.")
-        self.eyes = SliderRow("Meus olhos", s.eyes,
-                              "Deixa os seus olhos de verdade aparecerem: o olhar fica mais natural, mas são os seus.")
-        for row in (self.sharpness, self.intensity, self.mouth, self.eyes):
-            row.changed.connect(self.on_adjustment_changed)
-        reset = QPushButton("Restaurar o padrão")
-        reset.setObjectName("ghost")
-        reset.setCursor(Qt.CursorShape.PointingHandCursor)
-        reset.clicked.connect(self.reset_adjustments)
-        self.adjust_card = CollapsibleCard("Ajustes", s.adjustments_open)
-        self.adjust_card.toggled.connect(self.on_adjustments_toggled)
-        for row in (self.sharpness, self.intensity, self.mouth, self.eyes):
-            self.adjust_card.add(row)
-        self.adjust_card.body.addWidget(reset, 0, Qt.AlignmentFlag.AlignLeft)
-
-        # cabeçalho, corpo rolável e rodapé fixo
-        brand = QLabel(APP_NAME)
-        brand.setObjectName("brand")
-        self.chip = QLabel()
-        self.chip.setObjectName("chip")
-        header = QHBoxLayout()
-        header.setContentsMargins(4, 0, 4, 2)
-        header.setSpacing(8)
-        header.addWidget(Logo(24), 0)
-        header.addWidget(brand, 1)
-        header.addWidget(self.chip, 0)
-
-        body = QVBoxLayout()
-        body.setContentsMargins(SideScroll.MARGIN, 16, SideScroll.MARGIN, 8)
-        body.setSpacing(12)
-        body.addLayout(header)
-        for card in (face_card, camera_card, output_card, self.adjust_card):
-            body.addWidget(card)
-        body.addStretch(1)
-        body_widget = QWidget()
-        body_widget.setObjectName("sidebarBody")
-        body_widget.setLayout(body)
-        scroll = SideScroll(body_widget)
+        self.pages = QStackedWidget()
+        self.pages.addWidget(self._build_home())
+        self.pages.addWidget(self._build_settings())
 
         self.button = PrimaryButton()
         self.button.clicked.connect(self.toggle)
         self.status = QLabel()
         self.status.setObjectName("status")
         self.status.setWordWrap(True)
-        self.details_toggle = QPushButton()
-        self.details_toggle.setObjectName("ghost")
-        self.details_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.details_toggle.clicked.connect(lambda: self.on_details_toggled(not self.settings.details))
-        footer_row = QHBoxLayout()
-        footer_row.setContentsMargins(0, 0, 0, 0)
-        footer_row.addWidget(self.status, 1)
-        footer_row.addWidget(self.details_toggle, 0, Qt.AlignmentFlag.AlignTop)
         footer = QVBoxLayout()
         footer.setContentsMargins(16, 10, 16, 14)
         footer.setSpacing(8)
         footer.addWidget(self.button)
-        footer.addLayout(footer_row)
+        footer.addWidget(self.status)
         footer_widget = QWidget()
         footer_widget.setObjectName("footer")
         footer_widget.setLayout(footer)
@@ -353,7 +248,7 @@ class MainWindow(QWidget):
         side = QVBoxLayout()
         side.setContentsMargins(0, 0, 0, 0)
         side.setSpacing(0)
-        side.addWidget(scroll, 1)
+        side.addWidget(self.pages, 1)
         side.addWidget(footer_widget, 0)
         sidebar = QWidget()
         sidebar.setObjectName("sidebar")
@@ -365,6 +260,170 @@ class MainWindow(QWidget):
         root.setSpacing(0)
         root.addLayout(left, 1)
         root.addWidget(sidebar, 0)
+
+    def _page(self, header: QHBoxLayout, cards: list) -> SideScroll:
+        """Uma página da coluna: cabeçalho, cartões e o resto vazio, tudo rolável."""
+        body = QVBoxLayout()
+        body.setContentsMargins(SideScroll.MARGIN, 14, SideScroll.MARGIN, 8)
+        body.setSpacing(12)
+        body.addLayout(header)
+        for card in cards:
+            body.addWidget(card)
+        body.addStretch(1)
+        body_widget = QWidget()
+        body_widget.setObjectName("sidebarBody")
+        body_widget.setLayout(body)
+        return SideScroll(body_widget)
+
+    def _build_home(self) -> SideScroll:
+        """A tela inicial: só o rosto e a câmera. O resto mora nas configurações."""
+        s = self.settings
+        # rosto
+        self.gallery = FaceGallery()
+        self.gallery.picked.connect(self.choose_face)
+        self.gallery.none_picked.connect(self.choose_no_face)
+        self.gallery.add_requested.connect(self.browse_face)
+        self.gallery.remove_requested.connect(self.remove_face)
+        self.face_label = QLabel()
+        self.face_label.setObjectName("note")
+        self.face_label.setWordWrap(True)
+        face_card = Card("Rosto")
+        face_card.add(self.gallery)
+        face_card.add(self.face_label)
+
+        # câmera
+        self.cameras = QComboBox()
+        # A largura da lista é a da coluna, não a do nome mais comprido.
+        self.cameras.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.cameras.setMinimumContentsLength(8)
+        self.cameras.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.cameras.setPlaceholderText("Escolha a câmera")
+        self.cameras.currentTextChanged.connect(self.on_camera_changed)
+        refresh_cameras = QPushButton("Atualizar")
+        refresh_cameras.setObjectName("small")
+        refresh_cameras.setCursor(Qt.CursorShape.PointingHandCursor)
+        refresh_cameras.setToolTip("Procurar câmeras de novo")
+        refresh_cameras.clicked.connect(self._load_cameras)
+        camera_row = QHBoxLayout()
+        camera_row.setSpacing(8)
+        camera_row.setContentsMargins(0, 0, 0, 0)
+        camera_row.addWidget(self.cameras, 1)
+        camera_row.addWidget(refresh_cameras, 0)
+        camera_holder = QWidget()
+        camera_holder.setLayout(camera_row)
+        self.camera_view = CameraPreview()
+        self.camera_view.setToolTip("A imagem da câmera, como ela chega. Aparece só aqui: não vai para a câmera virtual.")
+        # A qualidade só aparece depois que há uma câmera escolhida.
+        self.quality = Segmented(QUALITY_CHOICES, s.resolution)
+        self.quality.setToolTip("Tamanho da imagem pedida à câmera. Leve = 480p, Padrão = 720p, Nítida = 1080p.")
+        self.quality.changed.connect(self.on_camera_option_changed)
+        camera_card = Card("Câmera")
+        camera_card.add(camera_holder)
+        camera_card.add(self.camera_view)
+        camera_card.add(self.quality)
+
+        brand = QLabel(APP_NAME)
+        brand.setObjectName("brand")
+        self.logo = Mascot(30, "SIDEBAR", compact=True)
+        self.logo.play("parado")
+        gear = IconButton("gear", "Configurações")
+        gear.clicked.connect(lambda: self.open_page(1))
+        header = QHBoxLayout()
+        header.setContentsMargins(2, 0, 0, 2)
+        header.setSpacing(10)
+        header.addWidget(self.logo, 0)
+        header.addWidget(brand, 1)
+        header.addWidget(gear, 0)
+        return self._page(header, [face_card, camera_card])
+
+    def _build_settings(self) -> SideScroll:
+        """As configurações: saída, câmera, ajustes da troca, o que aparece na tela e a aparência."""
+        s = self.settings
+        # saída
+        self.vcam_row = SwitchRow("Enviar para a câmera virtual", s.virtual_camera)
+        self.vcam_row.switch.setEnabled(False)   # só depois que o motor disser se ela existe aqui
+        self.vcam_row.toggled.connect(self.on_output_changed)
+        self.protect_row = SwitchRow("Borrar se a troca falhar", s.protect)
+        self.protect_row.setToolTip("Quando o rosto não é encontrado (mão na frente, cabeça muito virada, você fora\n"
+                                    "do quadro), a imagem sai borrada em vez de mostrar o rosto real.\n"
+                                    "Vale para a janela e para a câmera virtual.")
+        self.protect_row.toggled.connect(self.on_output_changed)
+        output_card = Card("Saída")
+        output_card.add(self.vcam_row)
+        output_card.add(self.protect_row)
+
+        # câmera
+        self.mirror = SwitchRow("Espelhar a imagem", s.mirror)
+        self.mirror.toggled.connect(self.on_camera_option_changed)
+        self.preview_row = SwitchRow("Mostrar a prévia da câmera", s.preview)
+        self.preview_row.setToolTip("Com a prévia, a câmera fica ligada enquanto o app está aberto,\n"
+                                    "para você conferir qual é a câmera e o enquadramento.\n"
+                                    "Desligada, a câmera só liga quando a troca começa.")
+        self.preview_row.toggled.connect(self.on_preview_toggled)
+        camera_card = Card("Câmera")
+        camera_card.add(self.mirror)
+        camera_card.add(self.preview_row)
+
+        # ajustes da troca
+        self.sharpness = SliderRow("Nitidez", s.sharpness, "Realça os detalhes do rosto trocado.")
+        self.intensity = SliderRow("Intensidade da troca", s.intensity,
+                                   "100% mostra só o rosto escolhido. Abaixo disso ele se mistura com o seu.")
+        self.mouth = SliderRow("Minha boca", s.mouth,
+                               "Deixa a sua boca de verdade aparecer: a fala fica mais natural, mas é a sua boca.")
+        self.eyes = SliderRow("Meus olhos", s.eyes,
+                              "Deixa os seus olhos de verdade aparecerem: o olhar fica mais natural, mas são os seus.")
+        reset = QPushButton("Restaurar o padrão")
+        reset.setObjectName("ghost")
+        reset.setCursor(Qt.CursorShape.PointingHandCursor)
+        reset.clicked.connect(self.reset_adjustments)
+        adjust_card = Card("Ajustes da troca")
+        for row in (self.sharpness, self.intensity, self.mouth, self.eyes):
+            row.changed.connect(self.on_adjustment_changed)
+            adjust_card.add(row)
+        adjust_card.body.addWidget(reset, 0, Qt.AlignmentFlag.AlignLeft)
+
+        # na tela
+        self.fps_row = SwitchRow("Mostrar os quadros por segundo", s.show_fps)
+        self.faces_row = SwitchRow("Mostrar quantos rostos há no enquadramento", s.show_faces)
+        self.faces_row.setToolTip("Um quadro ou uma foto ao fundo também conta como rosto.\nA troca vai sempre no maior deles.")
+        self.details_row = SwitchRow("Mostrar os detalhes técnicos", s.details)
+        for row in (self.fps_row, self.faces_row, self.details_row):
+            row.toggled.connect(self.on_display_changed)
+        display_card = Card("Na tela")
+        display_card.add(self.fps_row)
+        display_card.add(self.faces_row)
+        display_card.add(self.details_row)
+
+        # aparência
+        self.theme_choice = Segmented(THEME_CHOICES, s.theme)
+        self.theme_choice.changed.connect(self.on_theme_changed)
+        self.sound_row = SwitchRow("Grito do ganso ao abrir", s.sound)
+        self.sound_row.toggled.connect(self.on_display_changed)
+        look_card = Card("Aparência")
+        look_card.add(self.theme_choice)
+        look_card.add(self.sound_row)
+
+        about = QLabel(f"{APP_NAME} · gratuito, para uso pessoal e não comercial")
+        about.setObjectName("about")
+        about.setWordWrap(True)
+
+        back = IconButton("back", "Voltar")
+        back.clicked.connect(lambda: self.open_page(0))
+        title = QLabel("Configurações")
+        title.setObjectName("pageTitle")
+        header = QHBoxLayout()
+        header.setContentsMargins(0, 0, 0, 2)
+        header.setSpacing(8)
+        header.addWidget(back, 0)
+        header.addWidget(title, 1)
+        return self._page(header, [output_card, camera_card, adjust_card, display_card, look_card, about])
+
+    def open_page(self, index: int) -> None:
+        self.pages.setCurrentIndex(index)
+        self.pages.currentWidget().verticalScrollBar().setValue(0)
+
+    def show_gallery(self) -> None:
+        self.gallery.set_faces(self.settings.faces, self.settings.face, self.settings.without_face)
 
     def _load_cameras(self) -> None:
         try:
@@ -380,6 +439,8 @@ class MainWindow(QWidget):
         self.cameras.addItems(names)
         if chosen:
             self.cameras.setCurrentText(chosen)
+        else:
+            self.cameras.setCurrentIndex(-1)   # mostra "Escolha a câmera"
         self.cameras.blockSignals(False)
         changed = chosen != self.settings.camera
         self.settings.camera = chosen
@@ -417,7 +478,7 @@ class MainWindow(QWidget):
 
     def can_start(self) -> bool:
         return (self.loaded and not self.engine_dead and self.state in ("idle", "preview")
-                and self.face_ok and self.has_camera())
+                and (self.face_ok or self.settings.without_face) and self.has_camera())
 
     def toggle(self) -> None:
         if self.state == "running":
@@ -454,13 +515,27 @@ class MainWindow(QWidget):
 
     # ações do usuário -------------------------------------------------------------
     def choose_face(self, path: str) -> None:
+        if (self.face_ok and self.settings.face
+                and os.path.normcase(os.path.abspath(path)) == os.path.normcase(self.settings.face)):
+            return   # já é o rosto em uso: nada a analisar de novo
         self.settings.remember_face(path)
-        self.gallery.set_faces(self.settings.faces, self.settings.face)
+        self.show_gallery()
         self.face_ok = False
         self.face_note = "Analisando a foto…"
         self.settings.save()
         if self.loaded:
             self.engine.send(cmd="set_source", paths=[self.settings.face])
+        self.refresh()
+
+    def choose_no_face(self) -> None:
+        """Sem rosto: a câmera sai como é, sem troca. Vale na hora, também ao vivo."""
+        self.settings.choose_no_face()
+        self.show_gallery()
+        self.face_ok = False
+        self.face_note = ""
+        self.settings.save()
+        if self.loaded:
+            self.engine.send(cmd="set_source", paths=[])
         self.refresh()
 
     def browse_face(self) -> None:
@@ -472,11 +547,12 @@ class MainWindow(QWidget):
 
     def remove_face(self, path: str) -> None:
         was_selected = bool(self.settings.face) and os.path.normcase(self.settings.face) == os.path.normcase(path)
+        if was_selected and self.state in LIVE_STATES:
+            return   # a foto em uso ao vivo não sai da galeria (a galeria nem oferece o ×)
         self.settings.forget_face(path)
-        self.gallery.set_faces(self.settings.faces, self.settings.face)
+        self.show_gallery()
         if was_selected:
-            # O motor continua com o rosto antigo até outro ser escolhido; a tela
-            # deixa de oferecer Iniciar para não parecer que "nenhum rosto" funciona.
+            # Fica sem nada escolhido: a tela volta a pedir um rosto (ou o "sem rosto").
             self.face_ok = False
             self.face_note = ""
         self.settings.save()
@@ -531,14 +607,21 @@ class MainWindow(QWidget):
             row.set_value(value)
         self.option_timer.start(0)
 
-    def on_adjustments_toggled(self, opened: bool) -> None:
-        self.settings.adjustments_open = opened
-        self.settings.save()
+    def on_display_changed(self, *_args) -> None:
+        """O que aparece na tela: quadros por segundo, contagem de rostos, detalhes e o som."""
+        s = self.settings
+        s.show_fps, s.show_faces = self.fps_row.is_on(), self.faces_row.is_on()
+        s.details, s.sound = self.details_row.is_on(), self.sound_row.is_on()
+        self.details.setVisible(s.details)
+        s.save()
+        self.refresh()
 
-    def on_details_toggled(self, shown: bool) -> None:
-        self.settings.details = shown
-        self.details.setVisible(shown)
+    def on_theme_changed(self, name: str) -> None:
+        self.settings.theme = name
         self.settings.save()
+        self.setStyleSheet(theme.apply(name))
+        for widget in self.findChildren(QWidget):
+            widget.update()
         self.refresh()
 
     def on_blur_toggled(self, on: bool) -> None:
@@ -565,9 +648,9 @@ class MainWindow(QWidget):
                  else f"Não consegui salvar a foto em {os.path.normpath(folder)}",
                  theme.GO if saved else theme.STOP)
 
-    def say(self, text: str, colour: str = theme.INFO) -> None:
+    def say(self, text: str, colour: Optional[str] = None) -> None:
         """Recado passageiro sobre o vídeo."""
-        self.flash = (text, colour, time.perf_counter() + TOAST_SECONDS)
+        self.flash = (text, colour or theme.OVERLAY_MUTED, time.perf_counter() + TOAST_SECONDS)
         self.refresh()
 
     def dragEnterEvent(self, event) -> None:
@@ -625,8 +708,16 @@ class MainWindow(QWidget):
             self.engine.send(cmd="set_option", values=self.settings.engine_options())
             if self.settings.face:
                 self.engine.send(cmd="set_source", paths=[self.settings.face])
+            elif self.settings.without_face:
+                self.engine.send(cmd="set_source", paths=[])
             self.state = "idle"
             self.sync_camera()
+            # O mascote grita que terminou de carregar; o som sai junto com o bico abrindo.
+            self.view.celebrate()
+            if self.settings.sound and not self.args.offscreen:
+                QTimer.singleShot(self.view.scream_delay_ms(), play_honk)
+            if self.args.quit_after_load:
+                QTimer.singleShot(int(self.args.quit_after_load * 1000), self.close)
         elif kind == "virtual_camera":
             self.vcam_on = bool(evt.get("on"))
             self.vcam_watched = evt.get("watched") if self.vcam_on else None
@@ -693,7 +784,7 @@ class MainWindow(QWidget):
             self.face_ok = False
             self.face_note = (f"Não achei um rosto em “{os.path.basename(bad)}”. "
                               "Use uma foto nítida, de frente, com o rosto inteiro.")
-        self.gallery.set_faces(self.settings.faces, self.settings.face)
+        self.show_gallery()
         self.settings.save()
 
     def on_output(self, line: str) -> None:
@@ -774,6 +865,11 @@ class MainWindow(QWidget):
         s = self.stats or {}
         return (s.get("processed_fps") or 0) > 0 and s.get("frames_without_face", 0) > s["processed_fps"] * 0.5
 
+    def passing_through(self) -> bool:
+        """Ao vivo sem troca: a pessoa escolheu "sem rosto" e a câmera está saindo como é."""
+        s = self.stats or {}
+        return self.settings.without_face and ((s.get("passthrough_fps") or 0) > 0 or not self.face_ok)
+
     def load_progress(self) -> Optional[float]:
         """Fração da abertura já cumprida, estimada pelo tempo que ela levou da última vez.
 
@@ -801,18 +897,21 @@ class MainWindow(QWidget):
                 return "Ao vivo."
             if self.blur_now:
                 return "Ao vivo · imagem borrada por você."
+            if self.passing_through():
+                return "Ao vivo · sem troca: a câmera aparece como é."
             if self.face_missing():
                 return "Ao vivo · rosto não encontrado" + (", imagem borrada." if (s.get("protected_fps") or 0) > 0 else ".")
-            return f"Ao vivo · {s['swap_fps']:.0f} quadros por segundo."
-        if not self.settings.face:
+            return f"Ao vivo · {s['swap_fps']:.0f} quadros por segundo." if self.settings.show_fps else "Ao vivo."
+        without = self.settings.without_face
+        if not self.settings.face and not without:
             return "Escolha uma foto de rosto para começar."
-        if not self.face_ok:
+        if not self.face_ok and not without:
             return "Analisando a foto…" if self.face_note.startswith("Analisando") else "Escolha outra foto de rosto."
         if not self.has_camera():
-            return "Nenhuma câmera encontrada."
+            return "Escolha a câmera." if self.cameras.count() else "Nenhuma câmera encontrada."
         if self.state == "opening_camera":
             return "Abrindo a câmera…"
-        return "Tudo pronto."
+        return "Pronto para iniciar sem troca de rosto." if without else "Tudo pronto."
 
     def vcam_usable(self) -> bool:
         return self.settings.virtual_camera and self.vcam_available
@@ -839,15 +938,20 @@ class MainWindow(QWidget):
     def guide(self) -> List[tuple]:
         """O passo a passo do palco, com o que já está feito."""
         name = self.vcam_device or "Morpho Camera"
-        face_done = bool(self.settings.face) and self.face_ok
+        without = self.settings.without_face
+        face_done = (bool(self.settings.face) and self.face_ok) or without
         if self.face_note.startswith("Analisando"):
             face_text = "Analisando a foto…"
+        elif without:
+            face_text = "Sem rosto escolhido: a câmera aparece como é. Para trocar, clique numa foto da galeria."
         elif face_done:
             face_text = "Para trocar, clique em outra foto da galeria. Vale na hora, mesmo com a troca ligada."
         else:
             face_text = "Clique no + da galeria, ou arraste uma foto para esta janela."
         if not self.has_camera():
-            camera_done, camera_text = False, "Nenhuma câmera encontrada. Conecte uma e clique em Atualizar."
+            camera_done = False
+            camera_text = ("Escolha a câmera na lista ao lado." if self.cameras.count()
+                           else "Nenhuma câmera encontrada. Conecte uma e clique em Atualizar.")
         elif not self.settings.preview:
             camera_done, camera_text = True, "A prévia está desligada: a câmera só liga quando a troca começar."
         elif self.camera_view.has_frame():
@@ -857,7 +961,8 @@ class MainWindow(QWidget):
         steps = [
             [face_done, "Escolha um rosto", face_text],
             [camera_done, "Confira a câmera", camera_text],
-            [False, "Clique em “Trocar rostos”", "O resultado aparece aqui, no lugar destas instruções."],
+            [False, "Clique em “Iniciar sem troca”" if without else "Clique em “Troque o meu rosto”",
+             "O resultado aparece aqui, no lugar destas instruções."],
         ]
         if self.vcam_usable():
             steps.append([False, f"No Meet, Zoom ou Discord, escolha a câmera “{name}”",
@@ -879,16 +984,25 @@ class MainWindow(QWidget):
         view.loading = None
         if live and view.has_frame() and s.get("mode") == "live":
             if self.blur_now:
-                view.badge = ("BORRADO", theme.WARN, "por você")
+                view.badge = ("BORRADO", theme.OVERLAY_WARN, "por você")
+            elif self.passing_through():
+                view.badge = ("AO VIVO", theme.STOP, "sem troca")
             elif self.face_missing() and (s.get("protected_fps") or 0) > 0:
-                view.badge = ("PROTEGIDO", theme.WARN, "rosto não encontrado")
+                view.badge = ("PROTEGIDO", theme.OVERLAY_WARN, "rosto não encontrado")
             else:
-                view.badge = ("AO VIVO", theme.STOP, f"{s.get('swap_fps', 0):.0f} fps")
+                extras = []
+                if self.settings.show_fps:
+                    extras.append(f"{s.get('swap_fps', 0):.0f} fps")
+                seen = (s.get("faces_in_frame") or {}).get("max") or 0
+                if self.settings.show_faces and seen:
+                    extras.append("1 rosto" if seen == 1 else f"{seen:.0f} rostos")
+                view.badge = ("AO VIVO", theme.STOP, " · ".join(extras))
         elif live and view.has_frame():
             view.badge = ("AO VIVO", theme.STOP, "")
 
         if self.engine_dead:
             view.empty_title, view.empty_text = "O motor parou", self.error
+            view.mood = "dormindo"
         elif not self.loaded:
             view.loading = (self.load_progress(),)
             view.empty_title = f"Preparando o {APP_NAME}"
@@ -897,23 +1011,29 @@ class MainWindow(QWidget):
                                    "Só na primeira vez; leva alguns minutos.")
             else:
                 view.empty_text = self.detail or "Carregando os modelos de troca de rosto."
+        elif view.celebrating:
+            view.empty_title, view.empty_text = "Tudo pronto!", ""
         elif self.state in LIVE_STATES:
-            view.empty_title, view.empty_text = "Iniciando a troca…", "O resultado aparece aqui em instantes."
+            view.empty_title, view.empty_text = "Iniciando…", "O resultado aparece aqui em instantes."
+            view.mood = "matrix"
         else:
             view.empty_title = "O resultado aparece aqui"
             view.empty_text = ("É esta a imagem que os outros programas recebem pela câmera virtual."
                                if self.vcam_usable() else
-                               "Com a câmera virtual desligada, a troca aparece só nesta janela.")
+                               "Com a câmera virtual desligada, a imagem aparece só nesta janela.")
             view.steps = self.guide()
+            # Pílulas enquanto falta escolher o rosto (a vermelha ou a azul?); depois, parado.
+            view.mood = "parado" if (self.face_ok or self.settings.without_face) else "pilulas"
 
         toasts = []
         if self.error and not self.engine_dead:
             toasts.append((self.error, theme.STOP))
         if live:
-            toasts += [(text, theme.WARN) for text in diag.warnings(self.stats, self.best_swap_ms)[:2]]
+            toasts += [(text, theme.OVERLAY_WARN)
+                       for text in diag.warnings(self.stats, self.best_swap_ms, self.settings.show_faces)[:2]]
         elif self.state == "preview" and 0 < (s.get("capture_fps") or 0) < diag.LOW_CAMERA_FPS:
             toasts.append((f"Esta câmera entrega só {s['capture_fps']:.0f} quadros por segundo. "
-                           "Mais luz ou a qualidade Leve costumam ajudar.", theme.WARN))
+                           "Mais luz ou a qualidade Leve costumam ajudar.", theme.OVERLAY_WARN))
         if self.flash:
             toasts.append((self.flash[0], self.flash[1]))
         view.toasts = toasts
@@ -925,34 +1045,36 @@ class MainWindow(QWidget):
     def paint_camera(self) -> None:
         """O recado da prévia pequena quando não há imagem nela."""
         view = self.camera_view
-        if not self.loaded:
-            text = ""
-        elif not self.has_camera():
-            text = "Nenhuma câmera encontrada"
-        elif not self.settings.preview:
-            text = "Prévia desligada"
-            view.clear()
-        elif self.isMinimized():
+        # A prévia e a qualidade só ocupam lugar na tela inicial quando há uma câmera escolhida.
+        chosen = self.has_camera()
+        view.setVisible(chosen and self.settings.preview)
+        self.quality.setVisible(chosen)
+        if not self.loaded or self.isMinimized():
             text = ""
         else:
             text = "Abrindo a câmera…"
+        if not self.settings.preview:
+            view.clear()
         view.set_placeholder(text)
 
     def refresh(self) -> None:
         live = self.state in LIVE_STATES
+        virtual = self.vcam_usable()
         if live:
-            self.button.set_text("Parar", "e pausar a câmera virtual" if self.vcam_usable() else "", stop=True)
-        elif not self.loaded:
-            self.button.set_text("Trocar rostos", "preparando…", stop=False)
+            self.button.set_text("Parar", "e pausar a câmera virtual" if virtual else "", stop=True)
+        elif self.settings.without_face:
+            self.button.set_text("Iniciar sem troca", "preparando…" if not self.loaded else
+                                 ("a câmera virtual mostra você como é" if virtual else "só nesta janela, sem câmera virtual"),
+                                 stop=False)
         else:
-            self.button.set_text("Trocar rostos", "e iniciar câmera virtual" if self.vcam_usable()
-                                 else "só nesta janela, sem câmera virtual", stop=False)
+            self.button.set_text("Troque o meu rosto", "preparando…" if not self.loaded else
+                                 ("e inicie a câmera virtual" if virtual else "só nesta janela, sem câmera virtual"),
+                                 stop=False)
         self.button.setEnabled(self.state == "running" or self.can_start())
         for widget in (self.cameras, self.quality, self.mirror.switch, self.preview_row.switch):
             widget.setEnabled(not live)   # mudam a câmera: só fora do ao vivo
+        self.gallery.set_locked(self.settings.face if live else None)
         self.status.setText(self.status_text())
-        self.chip.setText("")
-        self.details_toggle.setText("Ocultar detalhes" if self.settings.details else "Detalhes")
         face_note = self.face_note or ("" if self.settings.faces else "Clique no + ou arraste uma foto para a janela.")
         self.face_label.setText(face_note)
         self.face_label.setVisible(bool(face_note))

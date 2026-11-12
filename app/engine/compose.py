@@ -134,6 +134,9 @@ class ComposeThread(threading.Thread):
                 # Pausa de privacidade pedida na tela: tudo borrado até segunda ordem.
                 frame = blurred(frame)
                 stats.count("protected")
+            elif getattr(record, "passthrough", False):
+                # "Sem rosto", escolhido pela pessoa: a imagem sai como é, de propósito.
+                guard.reset()
             elif options.protect:
                 # Sem troca neste quadro, o que sai não pode ser o rosto real: vale
                 # para a janela também, que mostra exatamente o que os outros veem.

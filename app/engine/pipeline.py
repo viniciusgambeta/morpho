@@ -78,6 +78,9 @@ class PipelineThread(threading.Thread):
         self._hub: Optional[FrameHub] = None            # sessão ao vivo atual, se houver
         self._source_requests: "queue.Queue[List[str]]" = queue.Queue()
         self._identity = None
+        # "Sem rosto", pedido pela pessoa: os quadros saem como vieram da câmera, sem troca e
+        # sem borrão. Diferente de ainda não haver rosto escolhido, quando nada sai.
+        self._passthrough = False
 
     # chamados pela thread principal -----------------------------------------
     def attach(self, hub: FrameHub) -> None:
@@ -119,6 +122,10 @@ class PipelineThread(threading.Thread):
                 break
         if paths is None:
             return
+        if not paths:
+            self._identity, self._passthrough = None, True
+            events.emit("source", ok=True, requested=[], used=[], skipped=[], padded=[], cleared=True)
+            return
         try:
             identity, skipped, padded = bridge.load_identity(paths)
         except bridge.EngineError as error:
@@ -130,7 +137,7 @@ class PipelineThread(threading.Thread):
             events.emit("source", ok=False, requested=paths, message=f"Não consegui ler a foto: {error}",
                         code="source_failed", kept_previous=self._identity is not None)
             return
-        self._identity = identity
+        self._identity, self._passthrough = identity, False
         events.emit("source", ok=True, requested=paths, used=list(identity.paths), skipped=skipped, padded=padded)
 
     # laço --------------------------------------------------------------------
@@ -174,9 +181,24 @@ class PipelineThread(threading.Thread):
         while not self._stop_event.is_set():
             self._serve_source_requests()
             hub = self._hub
-            if hub is None or self._identity is None:
+            if hub is None or (self._identity is None and not self._passthrough):
                 session_hub = None
                 time.sleep(0.02)
+                continue
+            if self._identity is None:
+                # Sem rosto: o quadro segue como veio. Nada de detecção nem de troca.
+                session_hub = None    # ao escolher um rosto, o rastreamento começa do zero
+                try:
+                    seq, frame, captured_at = hub.queue.get(timeout=0.05)
+                except queue.Empty:
+                    continue
+                record = ProcessedFrame(seq, frame, detected=False)
+                record.swapped = False
+                record.passthrough = True
+                hub.publish(record)
+                stats.count("processed")
+                stats.count("passthrough")
+                stats.sample("swap_latency", (time.perf_counter() - captured_at) * 1000)
                 continue
             if hub is not session_hub:
                 # Sessão nova: nada do rastreamento da anterior se aproveita.

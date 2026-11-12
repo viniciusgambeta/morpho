@@ -31,19 +31,26 @@ def bottleneck(stats: dict) -> str:
     return "o processamento (o pipeline não acompanha a câmera)"
 
 
-def warnings(stats: Optional[dict], best_swap_ms: Optional[float]) -> List[str]:
-    """Avisos sobre a sessão ao vivo, em linguagem de quem usa."""
+def warnings(stats: Optional[dict], best_swap_ms: Optional[float], show_faces: bool = True) -> List[str]:
+    """Avisos sobre a sessão ao vivo, em linguagem de quem usa. Os mais importantes primeiro.
+
+    ``show_faces`` é a opção "mostrar quantos rostos há no enquadramento" das configurações:
+    desligada, o aviso de mais de um rosto não aparece (um pôster na parede o deixaria fixo).
+    """
     if not stats:
         return []
     found = []
-    seen = (stats.get("faces_in_frame") or {}).get("max") or 0
-    if seen > 1:
-        found.append(f"Há {seen:.0f} rostos no enquadramento (um quadro ou foto ao fundo também conta). "
-                     "A troca vai no maior deles.")
     gpu = stats.get("gpu")
     if gpu and gpu.get("throttled"):
-        found.append(f"A placa de vídeo está limitada ({gpu['clock_mhz']:.0f} de {gpu['clock_max_mhz']:.0f} MHz). "
-                     "Confira o modo de desempenho do notebook e se ele está na tomada.")
+        # É o que mais derruba a fluidez (corta os quadros por segundo quase pela metade) e a
+        # pessoa resolve em dois cliques, então vem na frente dos outros avisos.
+        found.append(f"A placa de vídeo está em modo de economia ({gpu['clock_mhz']:.0f} de "
+                     f"{gpu['clock_max_mhz']:.0f} MHz) e a troca fica mais lenta. Escolha o modo de desempenho "
+                     "no aplicativo do fabricante do notebook e deixe-o na tomada.")
+    seen = (stats.get("faces_in_frame") or {}).get("max") or 0
+    if show_faces and seen > 1:
+        found.append(f"Há {seen:.0f} rostos no enquadramento (um quadro ou foto ao fundo também conta). "
+                     "A troca vai no maior deles.")
     capture = stats.get("capture_fps") or 0.0
     if 0 < capture < LOW_CAMERA_FPS:
         found.append(f"A câmera entrega só {capture:.0f} quadros por segundo. Mais luz ou uma resolução menor "

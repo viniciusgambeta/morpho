@@ -15,6 +15,9 @@ MAX_FACES = 12   # fotos guardadas na galeria; as mais antigas saem
 class Settings:
     faces: List[str] = field(default_factory=list)   # mais recente primeiro
     face: Optional[str] = None                       # a selecionada
+    # "Sem rosto" escolhido de propósito: a câmera sai como é, sem troca. É diferente de ainda
+    # não ter escolhido nada (primeira abertura), quando o app espera a pessoa escolher uma foto.
+    without_face: bool = False
     camera: Optional[str] = None
     resolution: str = "720p"
     mirror: bool = False
@@ -26,8 +29,11 @@ class Settings:
     intensity: int = 100                             # 100 = só o rosto trocado; menos mistura com o real
     mouth: int = 0                                   # quanto da boca real aparece
     eyes: int = 0                                    # quanto dos olhos reais aparece
-    adjustments_open: bool = False                   # cartão "Ajustes" aberto
     details: bool = False                            # painel de detalhes técnicos aberto
+    show_fps: bool = True                            # quadros por segundo no selo "AO VIVO" e no rodapé
+    show_faces: bool = False                         # quantos rostos há no enquadramento, no selo e em aviso
+    theme: str = "dark"                              # "dark" ou "light"
+    sound: bool = True                               # o grito do ganso quando o app termina de abrir
     window: Optional[List[int]] = None               # x, y, largura, altura da janela
     load_seconds: float = 0.0                        # quanto a última abertura levou (ritmo da barra de progresso)
 
@@ -60,6 +66,10 @@ class Settings:
         settings.faces = [p for p in settings.faces if os.path.isfile(p)][:MAX_FACES]
         if settings.face not in settings.faces:
             settings.face = None
+        if settings.face:
+            settings.without_face = False
+        if settings.theme not in ("dark", "light"):
+            settings.theme = "dark"
         return settings
 
     def save(self) -> None:
@@ -76,6 +86,12 @@ class Settings:
         self.faces = [path] + [p for p in self.faces if os.path.normcase(p) != os.path.normcase(path)]
         self.faces = self.faces[:MAX_FACES]
         self.face = path
+        self.without_face = False
+
+    def choose_no_face(self) -> None:
+        """Sem rosto: a câmera sai como é. As fotos continuam na galeria."""
+        self.face = None
+        self.without_face = True
 
     def forget_face(self, path: str) -> None:
         self.faces = [p for p in self.faces if os.path.normcase(p) != os.path.normcase(path)]

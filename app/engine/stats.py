@@ -77,6 +77,7 @@ class Stats:
             processed_fps=counts.get("processed", 0) / span,   # quadros que passaram pelo pipeline
             swap_fps=counts.get("swapped", 0) / span,          # quadros em que a troca foi de fato aplicada
             swap_hidden_fps=counts.get("swap_hidden", 0) / span,  # rosto achado, mas troca escondida pelo motor
+            passthrough_fps=counts.get("passthrough", 0) / span,  # "sem rosto": quadros que saíram como vieram
             swap_strength=spread("swap_strength"),
             head=dict(yaw=spread("head_yaw"), pitch=spread("head_pitch"), roll=spread("head_roll")),
             face_height_px=spread("face_height"),

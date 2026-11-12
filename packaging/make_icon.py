@@ -2,8 +2,9 @@
 
     <python do motor> packaging/make_icon.py
 
-O ícone é o mesmo da janela: o símbolo branco sobre o fundo azul, em vários
-tamanhos dentro de um só arquivo.
+O ícone é o mesmo da janela: o ganso de óculos dentro do bloco branco de cantos
+arredondados, em vários tamanhos dentro de um só arquivo. O mesmo arquivo serve ao
+instalador e ao diagnóstico.
 """
 from __future__ import annotations
 

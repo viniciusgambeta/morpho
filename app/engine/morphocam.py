@@ -30,6 +30,13 @@ import numpy as np
 from app import paths
 
 DEVICE_NAME = "Morpho Camera"
+CHANNEL = "MorphoCamera"                    # prefixo dos objetos compartilhados com o filtro (ver shared.inl)
+DEVICE_PATH = "morpho:camera"               # é por este texto que o Chrome distingue uma câmera da outra
+# A revisão do filtro faz parte do nome do arquivo (o mesmo número em vendor/morphocam/build-one.cmd).
+# Um programa de vídeo com a câmera aberta segura o arquivo antigo; com outro nome, a versão nova
+# instala e passa a valer na próxima vez que a câmera for aberta, sem fechar esse programa.
+# Revisão 2: carimbos de tempo reais (a 1 fazia o Chrome descartar 1 a cada 5 quadros no Meet).
+FILTER_REVISION = 2
 # Um identificador por arquitetura, como no filtro: os dois convivem.
 CLSID = {64: "{6D5F5A88-69F6-47B0-B24B-22115FF96210}", 32: "{6D5F5A88-69F6-47B0-B24B-22115FF96220}"}
 VIDEO_INPUT_CATEGORY = "{860BB310-5D01-11D0-BD3B-00A0C911CE86}"
@@ -48,8 +55,33 @@ RETRY_SECONDS = 0.25                        # intervalo entre tentativas de acha
 
 
 # ── registro ─────────────────────────────────────────────────────────────────────────────
+def dll_name(bits: int) -> str:
+    return f"MorphoCamera{bits}-{FILTER_REVISION}.dll"
+
+
 def dll_path(bits: int) -> str:
-    return os.path.join(paths.camera_root(), f"MorphoCamera{bits}.dll")
+    return os.path.join(paths.camera_root(), dll_name(bits))
+
+
+def _drop_old_revisions() -> None:
+    """Apaga os arquivos de revisões anteriores do filtro, se nenhum programa os estiver segurando."""
+    import re
+
+    folder, current = paths.camera_root(), {dll_name(64), dll_name(32)}
+    try:
+        names = os.listdir(folder)
+        # O que o Windows ainda carregaria (um registro antigo que não era nosso para trocar) fica.
+        in_use = {os.path.normcase(p) for p in (_registered_dll(bits) for bits in CLSID) if p}
+    except OSError:
+        return
+    for name in names:
+        if os.path.normcase(os.path.join(folder, name)) in in_use:
+            continue
+        if name not in current and re.fullmatch(r"MorphoCamera(64|32)(-\d+)?\.dll", name):
+            try:
+                os.remove(os.path.join(folder, name))
+            except OSError:
+                pass   # em uso por um programa de vídeo aberto: sai numa próxima vez
 
 
 def _registered_dll(bits: int) -> Optional[str]:
@@ -89,7 +121,7 @@ def _register(bits: int, dll: str) -> None:
         winreg.SetValueEx(key, "FriendlyName", 0, winreg.REG_SZ, DEVICE_NAME)
         winreg.SetValueEx(key, "CLSID", 0, winreg.REG_SZ, clsid)
         winreg.SetValueEx(key, "FilterData", 0, winreg.REG_BINARY, FILTER_DATA)
-        winreg.SetValueEx(key, "DevicePath", 0, winreg.REG_SZ, "morpho:camera")
+        winreg.SetValueEx(key, "DevicePath", 0, winreg.REG_SZ, DEVICE_PATH)
 
 
 def ensure_registered() -> dict:
@@ -115,6 +147,7 @@ def ensure_registered() -> dict:
             changed = True
     except OSError as error:
         return dict(ok=False, reason=f"Não consegui registrar a câmera virtual: {error}", changed=changed)
+    _drop_old_revisions()
     return dict(ok=is_registered(64), reason="", changed=changed)
 
 
@@ -199,15 +232,15 @@ class Sender:
         self._next_try = now + RETRY_SECONDS
         # O filtro cria o mutex, o evento "enviado" e a memória; o app cria o evento "quero".
         if not self._mutex:
-            self._mutex = _k32.OpenMutexW(SYNCHRONIZE, False, "MorphoCamera_Mutx")
+            self._mutex = _k32.OpenMutexW(SYNCHRONIZE, False, CHANNEL + "_Mutx")
             if not self._mutex:
                 return False
         if not self._want:
-            self._want = _k32.CreateEventW(None, False, False, "MorphoCamera_Want")
+            self._want = _k32.CreateEventW(None, False, False, CHANNEL + "_Want")
         if not self._sent:
-            self._sent = _k32.OpenEventW(EVENT_MODIFY_STATE, False, "MorphoCamera_Sent")
+            self._sent = _k32.OpenEventW(EVENT_MODIFY_STATE, False, CHANNEL + "_Sent")
         if not self._mapping:
-            self._mapping = _k32.OpenFileMappingW(FILE_MAP_WRITE, False, "MorphoCamera_Data")
+            self._mapping = _k32.OpenFileMappingW(FILE_MAP_WRITE, False, CHANNEL + "_Data")
         if not (self._want and self._sent and self._mapping):
             return False
         view = _k32.MapViewOfFile(self._mapping, FILE_MAP_WRITE, 0, 0, 0)

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Exportar o mascote</title></head>
+<body>
+<script src="/ganso.js"></script>
+<script>
+// Desenha cada animação pedida, quadro a quadro, numa grade com fundo transparente e manda o PNG
+// para make_mascot.py. É o mesmo desenho da galeria (mascote/index.html), versão de fundo claro.
+(async function () {
+  const params = new URLSearchParams(location.search);
+  const size = +params.get('size'), fps = +params.get('fps'), columns = +params.get('columns');
+  const wanted = JSON.parse(params.get('anims'));          // [[nome, pb], ...]
+  const index = {};
+  for (const [name, pb] of wanted) {
+    const info = Ganso.animacoes.find(a => a.nome === name);
+    if (!info) { await fetch('/fail', { method: 'POST', body: 'animação desconhecida: ' + name }); return; }
+    const frames = Math.round(info.ciclo * fps), rows = Math.ceil(frames / columns);
+    const sheet = document.createElement('canvas');
+    sheet.width = columns * size; sheet.height = rows * size;
+    const ctx = sheet.getContext('2d');
+    for (let i = 0; i < frames; i++) {
+      ctx.save();
+      ctx.translate((i % columns) * size, Math.floor(i / columns) * size);
+      ctx.beginPath(); ctx.rect(0, 0, size, size); ctx.clip();
+      Ganso.desenhar(ctx, name, i / fps, { tamanho: size, pb: !!pb });
+      ctx.restore();
+    }
+    const blob = await new Promise(resolve => sheet.toBlob(resolve, 'image/png'));
+    await fetch('/save?name=' + encodeURIComponent(name), { method: 'POST', body: blob });
+    index[name] = { frames, columns, size, fps, seconds: info.ciclo, title: info.titulo };
+  }
+  await fetch('/done', { method: 'POST', body: JSON.stringify({ version: Ganso.versao, animations: index }) });
+})();
+</script>
+</body>
+</html>

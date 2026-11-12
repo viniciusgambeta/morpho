@@ -41,14 +41,21 @@
 #include <strsafe.h>
 #include <math.h>
 
-#define CaptureSourceName L"Morpho Camera"
 #define StandbyText L"C\u00E2mera em pausa"
 
 //Use separate GUIDs for 64bit and 32bit so both can be installed at the same time
-#ifdef _WIN64
+#if defined(MORPHO_TEST)
+//Camera de teste (bench/vcam): outro nome, outro identificador e outra memoria compartilhada,
+//para medir o filtro sem encostar na camera que a pessoa esta usando.
+#define CaptureSourceName L"Morpho Camera Teste"
+DEFINE_GUID(CLSID_UnityCaptureService,    0x6d5f5a88, 0x69f6, 0x47b0, 0xb2, 0x4b, 0x22, 0x11, 0x5f, 0xf9, 0x62, 0x90);
+DEFINE_GUID(CLSID_UnityCaptureProperties, 0x6d5f5a88, 0x69f6, 0x47b0, 0xb2, 0x4b, 0x22, 0x11, 0x5f, 0xf9, 0x62, 0x91);
+#elif defined(_WIN64)
+#define CaptureSourceName L"Morpho Camera"
 DEFINE_GUID(CLSID_UnityCaptureService,    0x6d5f5a88, 0x69f6, 0x47b0, 0xb2, 0x4b, 0x22, 0x11, 0x5f, 0xf9, 0x62, 0x10);
 DEFINE_GUID(CLSID_UnityCaptureProperties, 0x6d5f5a88, 0x69f6, 0x47b0, 0xb2, 0x4b, 0x22, 0x11, 0x5f, 0xf9, 0x62, 0x11);
 #else
+#define CaptureSourceName L"Morpho Camera"
 DEFINE_GUID(CLSID_UnityCaptureService,    0x6d5f5a88, 0x69f6, 0x47b0, 0xb2, 0x4b, 0x22, 0x11, 0x5f, 0xf9, 0x62, 0x20);
 DEFINE_GUID(CLSID_UnityCaptureProperties, 0x6d5f5a88, 0x69f6, 0x47b0, 0xb2, 0x4b, 0x22, 0x11, 0x5f, 0xf9, 0x62, 0x21);
 #endif
@@ -108,7 +115,9 @@ public:
 	CCaptureStream(CSource* pOwner, HRESULT* phr, int CapNum) : CSourceStream("Stream", phr, pOwner, L"Output")
 	{
 		m_llFrame = m_llFrameMissCount = 0;
-		m_prevStartTime = 0;
+		m_prevStartTime = -1;
+		m_streamStart = 0;
+		m_wasRunning = false;
 		m_avgTimePerFrame = 10000000 / 30;
 		m_pReceiver = new SharedImageMemory(CapNum);
 		m_iUnscaledBufSize = 0;
@@ -125,21 +134,28 @@ public:
 	}
 
 private:
+	//Tempo real, em unidades de 100 ns
+	static LONGLONG Clock100ns()
+	{
+		static LARGE_INTEGER Freq;
+		if (!Freq.QuadPart) QueryPerformanceFrequency(&Freq);
+		LARGE_INTEGER Now;
+		QueryPerformanceCounter(&Now);
+		return (Now.QuadPart / Freq.QuadPart) * 10000000 + (Now.QuadPart % Freq.QuadPart) * 10000000 / Freq.QuadPart;
+	}
+
 	HRESULT FillBuffer(IMediaSample *pSamp) override
 	{
 		HRESULT hr;
 		BYTE* pBuf;
 		VIDEOINFO *pvi = (VIDEOINFO*)m_mt.Format();
-		REFERENCE_TIME startTime = m_prevStartTime, endTime = startTime + m_avgTimePerFrame;
 		LONGLONG mtStart = m_llFrame, mtEnd = mtStart + 1;
-		m_prevStartTime = endTime;
 		m_llFrame = mtEnd;
 		UCASSERT(pSamp->GetSize() == pvi->bmiHeader.biSizeImage);
 		UCASSERT(DIBSIZE(pvi->bmiHeader) == pvi->bmiHeader.biSizeImage);
 
 		if (FAILED(hr = pSamp->GetPointer(&pBuf))) return hr;
 		if (FAILED(hr = pSamp->SetActualDataLength(pvi->bmiHeader.biSizeImage))) return hr;
-		if (FAILED(hr = pSamp->SetTime(&startTime, &endTime))) return hr;
 		if (FAILED(hr = pSamp->SetMediaTime(&mtStart, &mtEnd))) return hr;
 
 		ProcessState State = { pBuf, pvi->bmiHeader.biWidth, pvi->bmiHeader.biHeight, pvi->bmiHeader.biBitCount / 8, this };
@@ -161,6 +177,25 @@ private:
 				FillStandby(&State);
 				break;}
 		}
+
+		//O carimbo de tempo e a hora real em que a imagem chegou do app. O filtro original contava
+		//quadros (quadro N = N * 1/30 s), o que so e verdade se o app entregar exatamente o ritmo
+		//combinado. Quando entrega menos (a troca de rosto oscila entre 20 e 30 por segundo), o
+		//programa de video enxerga uma camera "a 30" e descarta quadros para chegar ao ritmo que
+		//quer: o Chrome, com os 24 por segundo do Meet, jogava fora 1 a cada 5 de uma imagem que
+		//ja vinha a 20. Com a hora real ele ve o ritmo verdadeiro e nao descarta nada a toa.
+		LONGLONG Now = Clock100ns();
+		FILTER_STATE GraphState = State_Stopped;
+		m_pFilter->GetState(0, &GraphState);
+		const bool Running = (GraphState == State_Running);
+		if (!m_streamStart || (Running && !m_wasRunning)) { m_streamStart = Now; m_prevStartTime = -1; } //o zero e o momento em que o grafo comeca a rodar
+		m_wasRunning = Running;
+		REFERENCE_TIME startTime = Now - m_streamStart;
+		if (startTime <= m_prevStartTime) startTime = m_prevStartTime + 1;
+		REFERENCE_TIME endTime = startTime + m_avgTimePerFrame;
+		m_prevStartTime = startTime;
+		if (FAILED(hr = pSamp->SetTime(&startTime, &endTime))) return hr;
+
 		m_pReceiver->SetWanted(State.BufWidth, State.BufHeight);
 		if (OutputFrameRate) RenderFPSDisplay(&State);
 		return S_OK;
@@ -953,12 +988,17 @@ private:
 		DebugLog("[OnThreadStartPlay] %d x %d, %d bits\n", (int)((VIDEOINFO*)m_mt.Format())->bmiHeader.biWidth, (int)((VIDEOINFO*)m_mt.Format())->bmiHeader.biHeight, (int)((VIDEOINFO*)m_mt.Format())->bmiHeader.biBitCount);
 		m_llFrame = m_llFrameMissCount = 0;
 		m_llFrameMissMax = 5;
+		m_prevStartTime = -1;
+		m_streamStart = 0;
+		m_wasRunning = false;
 		return CSourceStream::OnThreadStartPlay();
 	}
 
 	CMediaType m_mt;
 	LONGLONG m_llFrame, m_llFrameMissCount, m_llFrameMissMax;
 	REFERENCE_TIME m_prevStartTime;
+	LONGLONG m_streamStart;
+	bool m_wasRunning;
 	REFERENCE_TIME m_avgTimePerFrame;
 	SharedImageMemory* m_pReceiver;
 	ProcessWorkers m_ProcessWorkers;

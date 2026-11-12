@@ -30,7 +30,9 @@ def parse_args() -> argparse.Namespace:
     choose.add_argument("--mirror", action="store_true")
     choose.add_argument("--virtual-camera", action="store_true", help="liga a saída para a câmera virtual")
     choose.add_argument("--no-preview", action="store_true", help="não mostra a câmera antes de iniciar")
-    choose.add_argument("--autostart", action="store_true", help="clica em Trocar rostos sozinho quando tudo estiver pronto")
+    choose.add_argument("--autostart", action="store_true", help="clica no botão de iniciar sozinho quando tudo estiver pronto")
+    choose.add_argument("--theme", choices=("dark", "light"), help="abre com este tema (e passa a lembrá-lo)")
+    choose.add_argument("--open-settings", action="store_true", help="abre já na página de configurações")
     engine = p.add_argument_group("motor")
     engine.add_argument("--model", default=DEFAULT_MODEL)
     engine.add_argument("--no-tensorrt", action="store_true")
@@ -47,6 +49,8 @@ def parse_args() -> argparse.Namespace:
     test.add_argument("--run-seconds", type=float, default=0.0, help="fecha depois de rodar ao vivo por este tempo")
     test.add_argument("--stop-after", type=float, default=0.0, help="clica em Parar depois de rodar por este tempo")
     test.add_argument("--quit-after", type=float, default=0.0, help="fecha este tempo depois de abrir")
+    test.add_argument("--quit-after-load", type=float, default=0.0,
+                      help="fecha este tempo depois de os modelos carregarem (para capturar o grito do mascote)")
     test.add_argument("--give-up-seconds", type=float, default=0.0,
                       help="fecha se não começar a rodar ao vivo neste tempo")
     test.add_argument("--offscreen", action="store_true", help="não abre janela na tela")

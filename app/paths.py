@@ -15,7 +15,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Clone do fork beekamai/DeepLiveCam (commit 766b9ce) com venv e modelos.
 # Enquanto o app não tem instalador, o motor é usado direto de lá.
 DEFAULT_ENGINE_ROOT = r"C:\Users\vinic\dlc-lab\beekamai"
-# Os arquivos da câmera virtual (MorphoCamera64.dll e MorphoCamera32.dll),
+# Os arquivos da câmera virtual (MorphoCamera64-N.dll e MorphoCamera32-N.dll, N = revisão do filtro),
 # compilados de vendor/morphocam. O registro no Windows aponta para lá, então a
 # pasta precisa ser estável e ficar fora do OneDrive.
 DEFAULT_CAMERA_ROOT = r"C:\Users\vinic\dlc-lab\morphocam"

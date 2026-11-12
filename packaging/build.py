@@ -65,9 +65,15 @@ TRT_RESOURCE = "nvinfer_builder_resource_{}_10.dll"
 TRT_FAMILIES = ("sm75", "sm80", "sm86", "sm89", "sm90", "sm100", "sm120")
 
 
-def copy_tree(source: str, target: str, skip_folders=(), skip_files=()) -> None:
-    """Cópia de pasta com o robocopy: rápida com muitos arquivos grandes."""
+def copy_tree(source: str, target: str, skip_folders=(), skip_files=(), purge: bool = False) -> None:
+    """Cópia de pasta com o robocopy: rápida com muitos arquivos grandes.
+
+    ``purge`` apaga do destino o que não existe mais na origem (um arquivo que saiu do
+    projeto não pode continuar indo no pacote só porque a pasta foi reaproveitada).
+    """
     command = ["robocopy", source, target, "/E", "/MT:16", "/R:1", "/W:1", "/NFL", "/NDL", "/NJH", "/NJS", "/NP"]
+    if purge:
+        command.append("/PURGE")
     if skip_folders:
         command += ["/XD", *skip_folders]
     if skip_files:
@@ -125,7 +131,9 @@ def main() -> int:
     args = parser.parse_args()
 
     out, engine = os.path.abspath(args.out), os.path.abspath(args.engine)
-    for needed in (args.launcher, os.path.join(args.camera, "MorphoCamera64.dll"), os.path.join(engine, "run.py")):
+    from app.engine.morphocam import dll_name   # o nome traz a revisão do filtro
+
+    for needed in (args.launcher, os.path.join(args.camera, dll_name(64)), os.path.join(engine, "run.py")):
         if not os.path.isfile(needed):
             raise SystemExit(f"Falta {needed}. Veja no começo deste arquivo o que compilar antes.")
     if os.path.isdir(out) and os.listdir(out):
@@ -193,18 +201,36 @@ def main() -> int:
                 copy_file(source, target)
 
     step("app, câmera virtual e Morpho.exe")
-    copy_tree(os.path.join(PROJECT, "app"), os.path.join(out, "app"), ("__pycache__",))
+    copy_tree(os.path.join(PROJECT, "app"), os.path.join(out, "app"), ("__pycache__",), purge=True)
+    camera_out = os.path.join(out, "camera")
+    os.makedirs(camera_out, exist_ok=True)
+    wanted = {dll_name(bits) for bits in (64, 32)}
+    # Revisões antigas do filtro não vão no pacote. Um programa que listou as câmeras (navegador,
+    # app de chamada) pode ainda estar segurando o arquivo antigo: apagar o Windows não deixa,
+    # mudar de pasta deixa. Então ele sai do pacote para uma pasta de sobras ao lado.
+    leftovers = os.path.join(os.path.dirname(out), "sobras")
+    shutil.rmtree(leftovers, ignore_errors=True)   # o que ninguém mais segura some aqui
+    for name in os.listdir(camera_out):
+        if name in wanted:
+            continue
+        try:
+            os.remove(os.path.join(camera_out, name))
+        except OSError:
+            os.makedirs(leftovers, exist_ok=True)
+            os.replace(os.path.join(camera_out, name), os.path.join(leftovers, f"{int(time.time())}-{name}"))
+            print(f"  {name} está em uso por outro programa: foi tirado do pacote para {leftovers}")
     for bits in (64, 32):
-        dll = os.path.join(args.camera, f"MorphoCamera{bits}.dll")
+        dll = os.path.join(args.camera, dll_name(bits))
         if os.path.isfile(dll):
-            copy_file(dll, os.path.join(out, "camera", f"MorphoCamera{bits}.dll"))
+            copy_file(dll, os.path.join(camera_out, dll_name(bits)))
     copy_file(args.launcher, os.path.join(out, "Morpho.exe"))
 
     step("licenças")
     copy_tree(os.path.join(HERE, "licencas"), os.path.join(out, "licencas"))
     copy_file(os.path.join(engine, "LICENSE"), os.path.join(out, "licencas", "AGPL-3.0.txt"))
     copy_file(os.path.join(python, "LICENSE.txt"), os.path.join(out, "licencas", "Python.txt"))
-    copy_tree(os.path.join(PROJECT, "vendor", "morphocam"), os.path.join(out, "licencas", "fonte-da-camera-virtual"))
+    copy_tree(os.path.join(PROJECT, "vendor", "morphocam"), os.path.join(out, "licencas", "fonte-da-camera-virtual"),
+              purge=True)
 
     sizes = {name: folder_size(os.path.join(out, name)) for name in ("python", "engine", "app", "camera")}
     total = folder_size(out)

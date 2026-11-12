@@ -1,80 +1,331 @@
-"""Peças da janela: palco do resultado, prévia da câmera, galeria de rostos e controles."""
+"""Peças da janela: mascote, palco do resultado, prévia da câmera, galeria de rostos e controles."""
 from __future__ import annotations
 
+import json
 import math
 import os
 import time
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
-from PySide6.QtCore import Property, QEasingCurve, QPointF, QPropertyAnimation, QRectF, QSize, Qt, Signal
+from PySide6.QtCore import Property, QEasingCurve, QPointF, QPropertyAnimation, QRectF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import (
-    QColor, QFont, QFontMetricsF, QIcon, QImage, QImageReader, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap,
+    QColor, QFont, QFontMetricsF, QIcon, QImage, QImageReader, QPainter, QPainterPath, QPen, QPixmap,
 )
 from PySide6.QtWidgets import (
     QAbstractButton, QButtonGroup, QFrame, QHBoxLayout, QLabel, QMenu, QPushButton, QScrollArea, QSizePolicy,
-    QSlider, QToolButton, QVBoxLayout, QWidget,
+    QSlider, QVBoxLayout, QWidget,
 )
 
 from app.ui import theme
 
 STAGE_MARGIN = 18
 STAGE_RADIUS = 16
+ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
 
 # ── marca ────────────────────────────────────────────────────────────────────────────────
-LOGO_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "morpho_simbolo.svg")
-# O desenho ocupa só o miolo do arquivo (512 x 512); este recorte tira a margem,
-# para o símbolo não ficar miúdo nos tamanhos pequenos.
-LOGO_VIEW = QRectF(64, 64, 384, 384)
-_logo = None
+# O símbolo é o ganso de óculos, em preto e branco. Em fundo escuro ele aparece sempre dentro
+# de um bloco branco de cantos arredondados; é esse bloco o ícone do app.
+GOOSE_FILE = os.path.join(ASSETS, "ganso.svg")
+# O desenho ocupa só o miolo do arquivo (512 x 512). Este recorte quadrado o centraliza e
+# deixa o ganso com uns três quartos da largura do bloco.
+GOOSE_VIEW = QRectF(23, 44.5, 465, 465)
+TILE_ROUNDING = 0.235      # raio dos cantos do bloco, como fração do lado
+_goose = None
 
 
-def paint_logo(painter: QPainter, box: QRectF) -> None:
-    """O símbolo do Morpho, desenhado dentro de ``box``."""
-    global _logo
-    if _logo is None:
+def paint_goose(painter: QPainter, box: QRectF) -> None:
+    """O ganso, desenhado dentro de ``box`` (sem o bloco)."""
+    global _goose
+    if _goose is None:
         from PySide6.QtSvg import QSvgRenderer
 
-        _logo = QSvgRenderer(LOGO_FILE)
-        if _logo.isValid():
-            _logo.setViewBox(LOGO_VIEW)
-    if not _logo.isValid():
+        _goose = QSvgRenderer(GOOSE_FILE)
+        if _goose.isValid():
+            _goose.setViewBox(GOOSE_VIEW)
+    if not _goose.isValid():
         return
     side = min(box.width(), box.height())
     painter.save()
     painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-    _logo.render(painter, QRectF(box.center().x() - side / 2, box.center().y() - side / 2, side, side))
+    _goose.render(painter, QRectF(box.center().x() - side / 2, box.center().y() - side / 2, side, side))
+    painter.restore()
+
+
+def paint_tile(painter: QPainter, box: QRectF, border: Optional[QColor] = None) -> None:
+    """O bloco branco de cantos arredondados com o ganso dentro."""
+    side = min(box.width(), box.height())
+    tile = QRectF(box.center().x() - side / 2, box.center().y() - side / 2, side, side)
+    painter.save()
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    painter.setPen(QPen(border, 1) if border is not None else Qt.PenStyle.NoPen)
+    painter.setBrush(QColor("#ffffff"))
+    inset = 0.5 if border is not None else 0.0
+    painter.drawRoundedRect(tile.adjusted(inset, inset, -inset, -inset), side * TILE_ROUNDING, side * TILE_ROUNDING)
+    paint_goose(painter, tile)
     painter.restore()
 
 
 def app_icon() -> QIcon:
-    """O ícone da janela e da barra de tarefas: o símbolo sobre um fundo azul."""
+    """O ícone da janela e da barra de tarefas: o ganso no bloco branco."""
     icon = QIcon()
     for size in (16, 24, 32, 48, 64, 128, 256):
         tile = QPixmap(size, size)
         tile.fill(Qt.GlobalColor.transparent)
         painter = QPainter(tile)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        shade = QLinearGradient(QPointF(0, 0), QPointF(size, size))
-        shade.setColorAt(0.0, QColor("#8fa9ff"))
-        shade.setColorAt(1.0, QColor("#4f6ef0"))
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(shade)
-        painter.drawRoundedRect(QRectF(0, 0, size, size), size * 0.22, size * 0.22)
-        paint_logo(painter, QRectF(size * 0.14, size * 0.14, size * 0.72, size * 0.72))
+        # A borda cinza clara só aparece quando o fundo também é branco (barra de tarefas clara).
+        paint_tile(painter, QRectF(0, 0, size, size), QColor(0, 0, 0, 46))
         painter.end()
         icon.addPixmap(tile)
     return icon
 
 
-class Logo(QWidget):
-    def __init__(self, size: int = 22) -> None:
+def play_honk() -> None:
+    """O grito do ganso. Toca sem travar a janela; sem som disponível, não faz nada."""
+    try:
+        import winsound
+
+        winsound.PlaySound(os.path.join(ASSETS, "honk.wav"),
+                           winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NODEFAULT)
+    except Exception:
+        pass
+
+
+# ── mascote ──────────────────────────────────────────────────────────────────────────────
+# As animações vêm prontas de packaging/make_mascot.py: uma imagem por animação, com todos os
+# quadros de um ciclo numa grade. Só as que o Vinicius liberou para o app: parado, dormindo,
+# gritando, matrix e pilulas.
+MASCOT_DIR = os.path.join(ASSETS, "mascote")
+_mascot_index: Optional[dict] = None
+_mascot_frames: Dict[Tuple[str, int], List[QPixmap]] = {}
+
+
+def mascot_info(name: str) -> Optional[dict]:
+    global _mascot_index
+    if _mascot_index is None:
+        try:
+            with open(os.path.join(MASCOT_DIR, "mascote.json"), encoding="utf-8") as f:
+                _mascot_index = json.load(f)["animations"]
+        except (OSError, ValueError, KeyError):
+            _mascot_index = {}
+    return _mascot_index.get(name)
+
+
+def mascot_frames(name: str, pixels: int) -> List[QPixmap]:
+    """Os quadros de uma animação, já no tamanho em que vão ser desenhados."""
+    key = (name, pixels)
+    if key not in _mascot_frames:
+        info, frames = mascot_info(name), []
+        sheet = QImage(os.path.join(MASCOT_DIR, name + ".png")) if info else QImage()
+        if info and not sheet.isNull():
+            size, columns = info["size"], info["columns"]
+            for index in range(info["frames"]):
+                cell = sheet.copy((index % columns) * size, (index // columns) * size, size, size)
+                if pixels != size:
+                    cell = cell.scaled(pixels, pixels, Qt.AspectRatioMode.IgnoreAspectRatio,
+                                       Qt.TransformationMode.SmoothTransformation)
+                frames.append(QPixmap.fromImage(cell))
+        _mascot_frames[key] = frames
+    return _mascot_frames[key]
+
+
+def release_mascot(*names: str) -> None:
+    """Solta da memória os quadros de animações que não vão mais aparecer (as da abertura)."""
+    for key in [k for k in _mascot_frames if k[0] in names]:
+        del _mascot_frames[key]
+
+
+def _ease(t: float) -> float:
+    t = min(1.0, max(0.0, t))
+    return t * t * (3 - 2 * t)
+
+
+class Mascot(QWidget):
+    """O ganso animado dentro do bloco branco.
+
+    ``play`` troca a animação na hora. ``switch`` faz a passagem com um pulinho: o bloco se
+    abaixa, salta e troca no ar, com uma fusão curta entre a animação que sai e a que entra.
+    Uma animação sem laço para no último quadro e avisa por ``finished``.
+    """
+
+    finished = Signal(str)
+    HOP_SECONDS = 0.46
+    HOP_SWAP_AT = 0.45       # fração do pulo em que a animação troca (o ponto mais alto)
+    FADE_SECONDS = 0.16
+    FPS = 30
+
+    def __init__(self, side: int = 132, backdrop: str = "STAGE", compact: bool = False, floating: bool = False) -> None:
         super().__init__()
-        self.setFixedSize(size, size)
+        self._side, self._backdrop, self._compact, self._floating = side, backdrop, compact, floating
+        self._name: Optional[str] = None
+        self._loop, self._speed, self._clock = True, 1.0, 0.0
+        self._done = False
+        self._next: Optional[tuple] = None          # (nome, laço, velocidade) à espera do ponto alto do pulo
+        self._hop_at: Optional[float] = None
+        self._fade: Optional[tuple] = None          # (nome que sai, instante dele, quando a fusão começou)
+        self._last = time.perf_counter()
+        self._born = self._last
+        self._timer = QTimer(self)
+        self._timer.setInterval(int(1000 / self.FPS))
+        self._timer.timeout.connect(self._advance)
+        self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, True)
+        self.setFixedSize(self.sizeHint())
+
+    # tamanho: o bloco, mais a folga do pulo em cima e a da sombra embaixo
+    def _rooms(self) -> Tuple[float, float, float]:
+        if self._compact:
+            return 0.0, 0.0, 0.0
+        return self._side * 0.18, self._side * 0.20, self._side * 0.10    # em cima, embaixo, dos lados
+
+    def sizeHint(self) -> QSize:
+        top, bottom, sides = self._rooms()
+        return QSize(int(math.ceil(self._side + 2 * sides)), int(math.ceil(self._side + top + bottom)))
+
+    def set_side(self, side: int) -> None:
+        if side != self._side:
+            self._side = side
+            self.setFixedSize(self.sizeHint())
+            self.update()
+
+    def side(self) -> int:
+        return self._side
+
+    def tile_top(self) -> float:
+        """Distância do topo da peça ao topo do bloco (para quem alinha por ele)."""
+        return self._rooms()[0]
+
+    # animação -------------------------------------------------------------------------
+    def current(self) -> Optional[str]:
+        return self._next[0] if self._next else self._name
+
+    def play(self, name: str, loop: bool = True, speed: float = 1.0) -> None:
+        self._name, self._loop, self._speed, self._clock, self._done = name, loop, speed, 0.0, False
+        self._next = self._hop_at = self._fade = None
+        self._last = time.perf_counter()
+        self.update()
+
+    def switch(self, name: str, loop: bool = True, speed: float = 1.0) -> None:
+        if self.current() == name:
+            return
+        if self._name is None or not self.isVisible():
+            self.play(name, loop, speed)
+            return
+        self._next = (name, loop, speed)
+        if self._hop_at is None:
+            self._hop_at = time.perf_counter()
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        self._last = time.perf_counter()
+        self._timer.start()
+
+    def hideEvent(self, event) -> None:
+        super().hideEvent(event)
+        self._timer.stop()
+
+    def _advance(self) -> None:
+        now = time.perf_counter()
+        step, self._last = min(0.25, now - self._last), now
+        info = mascot_info(self._name) if self._name else None
+        if info and not self._done:
+            self._clock += step * self._speed
+            if self._clock >= info["seconds"]:
+                if self._loop:
+                    self._clock %= info["seconds"]
+                else:
+                    self._clock, self._done = info["seconds"] - 1e-3, True
+                    self.finished.emit(self._name)
+        if self._hop_at is not None:
+            progress = (now - self._hop_at) / self.HOP_SECONDS
+            if self._next and progress >= self.HOP_SWAP_AT:
+                self._fade = (self._name, self._clock, now)
+                self._name, self._loop, self._speed = self._next
+                self._clock, self._done, self._next = 0.0, False, None
+            if progress >= 1.0:
+                self._hop_at = None
+        if self._fade and now - self._fade[2] >= self.FADE_SECONDS:
+            self._fade = None
+        self.update()
+
+    def _pose(self, now: float) -> Tuple[float, float, float]:
+        """(esticar na largura, esticar na altura, subida em fração do lado) do bloco agora."""
+        lift = 0.016 * math.sin((now - self._born) * 1.7) + 0.016 if self._floating else 0.0   # flutua de leve
+        if self._hop_at is None:
+            return 1.0, 1.0, lift
+        u = min(1.0, (now - self._hop_at) / self.HOP_SECONDS)
+        if u < 0.28:                                   # abaixa para pegar impulso
+            k = _ease(u / 0.28)
+            return 1 + 0.06 * k, 1 - 0.10 * k, lift * (1 - k)
+        if u < 0.62:                                   # no ar: estica na subida, volta ao normal na descida
+            v = (u - 0.28) / 0.34
+            arc = math.sin(math.pi * v)
+            launch = 1 - min(1.0, v * 4)
+            return 1 - 0.04 * arc + 0.06 * launch, 1 + 0.07 * arc - 0.10 * launch, 0.13 * arc
+        w = (u - 0.62) / 0.38                          # pousa, amassa um pouco e assenta
+        settle = (1 - w) ** 2 * math.cos(w * math.pi * 1.6)
+        return 1 + 0.05 * settle, 1 - 0.08 * settle, lift * _ease(w)
+
+    def _frame(self, name: Optional[str], clock: float, pixels: int) -> Optional[QPixmap]:
+        info = mascot_info(name) if name else None
+        frames = mascot_frames(name, pixels) if info else []
+        if not frames:
+            return None
+        return frames[min(len(frames) - 1, int(clock * info["fps"]))]
 
     def paintEvent(self, _event) -> None:
+        now = time.perf_counter()
         painter = QPainter(self)
-        paint_logo(painter, QRectF(self.rect()))
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+        painter.fillRect(self.rect(), QColor(getattr(theme, self._backdrop)))
+        side = float(self._side)
+        top, _bottom, _sides = self._rooms()
+        sx, sy, lift = self._pose(now)
+        centre_x, ground = self.width() / 2, top + side
+        if not self._compact:
+            # A sombra no chão: encolhe e clareia quando o bloco sobe.
+            spread = 1 - min(0.5, lift * 2.6)
+            shadow = QRectF(0, 0, side * 0.66 * spread * sx, side * 0.085 * spread)
+            shadow.moveCenter(QPointF(centre_x, ground + side * 0.105))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(0, 0, 0, int(theme.SHADOW * spread)))
+            painter.drawEllipse(shadow)
+        painter.save()
+        painter.translate(centre_x, ground - lift * side)     # o bloco estica e amassa a partir da base
+        painter.scale(sx, sy)
+        tile = QRectF(-side / 2, -side, side, side)
+        shape = QPainterPath()
+        shape.addRoundedRect(tile, side * TILE_ROUNDING, side * TILE_ROUNDING)
+        painter.fillPath(shape, QColor(theme.TILE))
+        pixels = max(16, int(round(side * self.devicePixelRatioF())))
+        painter.setClipPath(shape)
+        current = self._frame(self._name, self._clock, pixels)
+        leaving = self._frame(self._fade[0], self._fade[1], pixels) if self._fade else None
+        if leaving is not None and current is not None:
+            # Fusão de verdade: a animação que sai fica inteira por baixo e a que entra vai
+            # cobrindo, já sobre o branco do bloco. Duas imagens meio transparentes, uma sobre
+            # a outra, deixariam o preto cinza no meio do caminho.
+            mix = min(1.0, (now - self._fade[2]) / self.FADE_SECONDS)
+            painter.drawPixmap(tile, leaving, QRectF(leaving.rect()))
+            solid = QPixmap(current.size())
+            solid.fill(QColor(theme.TILE))
+            brush = QPainter(solid)
+            brush.drawPixmap(0, 0, current)
+            brush.end()
+            painter.setOpacity(mix)
+            painter.drawPixmap(tile, solid, QRectF(solid.rect()))
+        elif current is not None:
+            painter.drawPixmap(tile, current, QRectF(current.rect()))
+        elif self._name is None:
+            painter.setClipping(False)
+            paint_goose(painter, tile)
+        painter.setOpacity(1.0)
+        painter.setClipping(False)
+        if theme.TILE_BORDER != theme.TILE:
+            painter.setPen(QPen(QColor(theme.TILE_BORDER), 1))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawPath(shape)
+        painter.restore()
 
 
 # ── palco ────────────────────────────────────────────────────────────────────────────────
@@ -83,9 +334,13 @@ class FrameView(QWidget):
 
     Com a troca ligada, mostra o vídeo e, por cima, o selo de estado, os avisos
     e os botões de ação. Sem vídeo, mostra o que a pessoa precisa saber naquele
-    momento: o carregamento (com barra de progresso), o passo a passo para
-    começar, ou um recado simples.
+    momento, com o mascote: a abertura (Matrix, barra de progresso e, no fim, o
+    grito), o passo a passo para começar, ou um recado simples.
     """
+
+    intro_done = Signal()      # o grito de "terminei de carregar" acabou
+    LOADING_SIDE, SMALL_SIDE = 132, 84
+    CELEBRATION_SECONDS = 2.3  # o grito inteiro: fôlego, berro e bico fechando
 
     def __init__(self) -> None:
         super().__init__()
@@ -97,11 +352,21 @@ class FrameView(QWidget):
         self.steps: List[Tuple[str, str, str]] = []
         # Carregamento: None = não está carregando; senão (fração de 0 a 1, ou None se não dá para estimar).
         self.loading: Optional[Tuple[Optional[float]]] = None
+        self.celebrating = False
+        self.mood = "matrix"    # a animação do mascote fora da abertura: parado, pilulas, dormindo, matrix
         self.badge: Optional[Tuple[str, str, str]] = None      # (texto, cor do ponto, complemento)
         self.toasts: List[Tuple[str, str]] = []                 # (texto, cor da barra)
         self.banner = ""        # faixa de instrução por cima da imagem (gravação)
         self.buttons: List[QPushButton] = []
         self._content = QRectF()
+        self._mascot_spot: Optional[QPointF] = None             # onde o topo do bloco do mascote deve ficar
+        self.mascot = Mascot(self.LOADING_SIDE, "STAGE", floating=True)
+        self.mascot.setParent(self)
+        self.mascot.play("matrix")
+        self.mascot.hide()
+        self._celebration = QTimer(self)
+        self._celebration.setSingleShot(True)
+        self._celebration.timeout.connect(self._end_celebration)
         self.setMinimumSize(520, 320)
 
     def show_frame(self, frame) -> None:
@@ -120,6 +385,25 @@ class FrameView(QWidget):
         self._frame = None
         self._image = None
         self.update()
+
+    # a abertura termina com o grito ---------------------------------------------------
+    def celebrate(self) -> None:
+        """Os modelos carregaram: o mascote passa do Matrix para o grito, uma vez."""
+        if self.celebrating:
+            return
+        self.celebrating = True
+        self.mascot.switch("gritando", loop=False)
+        self._celebration.start(int((Mascot.HOP_SECONDS * Mascot.HOP_SWAP_AT + self.CELEBRATION_SECONDS) * 1000))
+        self.update()
+
+    def _end_celebration(self) -> None:
+        self.celebrating = False
+        release_mascot("matrix", "gritando")
+        self.intro_done.emit()
+
+    def scream_delay_ms(self) -> int:
+        """Quanto falta, a partir de ``celebrate``, para o bico abrir (a hora do som)."""
+        return int((Mascot.HOP_SECONDS * Mascot.HOP_SWAP_AT + 0.42) * 1000)
 
     def add_button(self, button: QPushButton) -> None:
         button.setParent(self)
@@ -152,6 +436,40 @@ class FrameView(QWidget):
             self._content = content
             self._place_buttons()
 
+    def _is_loading(self) -> bool:
+        return self.loading is not None or self.celebrating
+
+    def _place_mascot(self) -> None:
+        """Põe o mascote onde a última pintura pediu; some quando há vídeo ou não cabe."""
+        spot = None if self._image is not None else self._mascot_spot
+        if spot is None:
+            if self.mascot.isVisible():
+                self.mascot.hide()
+            return
+        if not self._is_loading():
+            self.mascot.switch(self.mood)
+        size = self.mascot.sizeHint()
+        x, y = int(round(spot.x() - size.width() / 2)), int(round(spot.y() - self.mascot.tile_top()))
+        if (self.mascot.x(), self.mascot.y()) != (x, y):
+            self.mascot.move(x, y)
+        if not self.mascot.isVisible():
+            self.mascot.show()
+
+    def _with_mascot(self, body: float, side: int) -> Tuple[float, bool]:
+        """Centraliza no palco um bloco de altura ``body`` com o mascote em cima, se couber.
+
+        Devolve o topo do bloco (já descontado o mascote) e se ele coube."""
+        self.mascot.set_side(side)
+        gap = 22 + side * 0.20        # a sombra do mascote mais um respiro
+        fits = side + gap + body <= self._content.height() - 24
+        total = body + (side + gap if fits else 0)
+        top = self._content.center().y() - total / 2
+        if fits:
+            self._mascot_spot = QPointF(self._content.center().x(), top)
+            return top + side + gap, True
+        self._mascot_spot = None
+        return top, False
+
     def paintEvent(self, _event) -> None:
         self._layout_content()
         painter = QPainter(self)
@@ -159,11 +477,12 @@ class FrameView(QWidget):
         painter.fillRect(self.rect(), QColor(theme.WINDOW))
         shape = QPainterPath()
         shape.addRoundedRect(self._content, STAGE_RADIUS, STAGE_RADIUS)
+        self._mascot_spot = None
         if self._image is None:
             painter.fillPath(shape, QColor(theme.STAGE))
             painter.setPen(QPen(QColor(theme.BORDER), 1))
             painter.drawPath(shape)
-            if self.loading is not None:
+            if self._is_loading():
                 self._paint_loading(painter)
             elif self.steps:
                 self._paint_guide(painter)
@@ -188,6 +507,8 @@ class FrameView(QWidget):
         if self.badge and not self.banner:
             self._paint_badge(painter)
         self._paint_toasts(painter)
+        painter.end()
+        self._place_mascot()
 
     # sem vídeo ------------------------------------------------------------------------
     def _title_font(self) -> QFont:
@@ -196,46 +517,46 @@ class FrameView(QWidget):
         return font
 
     def _paint_message(self, painter: QPainter) -> None:
-        centre = self._content.center()
+        width = min(460.0, self._content.width() - 80)
+        left = self._content.center().x() - width / 2
+        wrap = int(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap)
+        text = QFont("Segoe UI", 10)
+        text_height = QFontMetricsF(text).boundingRect(QRectF(0, 0, width, 300), wrap, self.empty_text).height()
+        y, _fits = self._with_mascot(34 + 8 + text_height, self.SMALL_SIDE)
         painter.setFont(self._title_font())
         painter.setPen(QColor(theme.TEXT))
-        painter.drawText(QRectF(self._content.left() + 40, centre.y() - 44, self._content.width() - 80, 34),
-                         Qt.AlignmentFlag.AlignCenter, self.empty_title)
-        painter.setFont(QFont("Segoe UI", 10))
+        painter.drawText(QRectF(left - 30, y, width + 60, 34), Qt.AlignmentFlag.AlignCenter, self.empty_title)
+        painter.setFont(text)
         painter.setPen(QColor(theme.MUTED))
-        painter.drawText(QRectF(self._content.left() + 60, centre.y() - 6, self._content.width() - 120, 70),
-                         Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap,
-                         self.empty_text)
+        painter.drawText(QRectF(left, y + 42, width, text_height + 4), wrap, self.empty_text)
 
     def _paint_loading(self, painter: QPainter) -> None:
-        """Marca, o que está acontecendo e uma barra que anda: a espera fica com cara de espera curta."""
-        centre = self._content.center()
+        """O mascote, o que está acontecendo e uma barra grossa que anda."""
         width = min(360.0, self._content.width() - 80)
-        left = centre.x() - width / 2
-        paint_logo(painter, QRectF(centre.x() - 32, centre.y() - 128, 64, 64))
+        left = self._content.center().x() - width / 2
+        y, _fits = self._with_mascot(34 + 6 + 40 + 16 + 10 + 28, self.LOADING_SIDE)
         painter.setFont(self._title_font())
         painter.setPen(QColor(theme.TEXT))
-        painter.drawText(QRectF(left - 60, centre.y() - 46, width + 120, 34), Qt.AlignmentFlag.AlignCenter,
-                         self.empty_title)
+        painter.drawText(QRectF(left - 60, y, width + 120, 34), Qt.AlignmentFlag.AlignCenter, self.empty_title)
         painter.setFont(QFont("Segoe UI", 10))
         painter.setPen(QColor(theme.MUTED))
-        painter.drawText(QRectF(left - 60, centre.y() - 8, width + 120, 44),
+        painter.drawText(QRectF(left - 60, y + 40, width + 120, 40),
                          Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap,
                          self.empty_text)
-        track = QRectF(left, centre.y() + 50, width, 6)
+        track = QRectF(left, y + 96, width, 10)
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QColor(theme.FIELD))
-        painter.drawRoundedRect(track, 3, 3)
-        fraction = self.loading[0]
-        painter.setBrush(QColor(theme.ACCENT))
+        painter.drawRoundedRect(track, 5, 5)
+        fraction = 1.0 if self.celebrating else (self.loading[0] if self.loading else 0.0)
+        painter.setBrush(QColor(theme.BAR))
         if fraction is None:
             # Sem estimativa (a otimização da primeira vez): um trecho que vai e volta.
             phase = (math.sin(time.perf_counter() * 2.2) + 1) / 2
             chunk = width * 0.28
-            painter.drawRoundedRect(QRectF(left + (width - chunk) * phase, track.top(), chunk, 6), 3, 3)
+            painter.drawRoundedRect(QRectF(left + (width - chunk) * phase, track.top(), chunk, 10), 5, 5)
         else:
             fraction = min(1.0, max(0.0, fraction))
-            painter.drawRoundedRect(QRectF(left, track.top(), max(6.0, width * fraction), 6), 3, 3)
+            painter.drawRoundedRect(QRectF(left, track.top(), max(10.0, width * fraction), 10), 5, 5)
             painter.setFont(QFont("Segoe UI", 9))
             painter.setPen(QColor(theme.FAINT))
             painter.drawText(QRectF(left, track.bottom() + 8, width, 20), Qt.AlignmentFlag.AlignCenter,
@@ -259,7 +580,7 @@ class FrameView(QWidget):
                 height += 2 + QFontMetricsF(detail).boundingRect(QRectF(0, 0, width - 42, 200), wrap, explanation).height()
             rows.append(max(28.0, height))
         total = 34 + 6 + text_height + 26 + sum(rows) + 14 * max(0, len(rows) - 1)
-        y = self._content.center().y() - total / 2
+        y, _fits = self._with_mascot(total, self.SMALL_SIDE)
 
         painter.setFont(title)
         painter.setPen(QColor(theme.TEXT))
@@ -276,7 +597,7 @@ class FrameView(QWidget):
                 painter.setPen(Qt.PenStyle.NoPen)
                 painter.setBrush(QColor(theme.GO))
                 painter.drawEllipse(circle)
-                painter.setPen(QPen(QColor("#06210f"), 2.2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
+                painter.setPen(QPen(QColor(theme.ON_GO), 2.2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
                                     Qt.PenJoinStyle.RoundJoin))
                 tick = QPainterPath()
                 tick.moveTo(circle.left() + 7.5, circle.top() + 13.5)
@@ -285,9 +606,9 @@ class FrameView(QWidget):
                 painter.setBrush(Qt.BrushStyle.NoBrush)
                 painter.drawPath(tick)
             else:
-                colour = QColor(theme.ACCENT if state == "now" else theme.BORDER_STRONG)
+                colour = QColor(theme.TEXT if state == "now" else theme.BORDER_STRONG)
                 painter.setPen(QPen(colour, 1.6))
-                painter.setBrush(QColor(124, 156, 255, 36) if state == "now" else Qt.BrushStyle.NoBrush)
+                painter.setBrush(QColor(theme.FIELD) if state == "now" else Qt.BrushStyle.NoBrush)
                 painter.drawEllipse(circle.adjusted(1, 1, -1, -1))
                 number = QFont("Segoe UI", 9)
                 number.setBold(True)
@@ -315,18 +636,18 @@ class FrameView(QWidget):
             width += 10 + QFontMetricsF(plain).horizontalAdvance(extra)
         pill = QRectF(self._content.left() + 12, self._content.top() + 12, width, 30)
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor(14, 16, 20, 200))
+        painter.setBrush(QColor(11, 11, 12, 200))
         painter.drawRoundedRect(pill, 15, 15)
         painter.setBrush(QColor(colour))
         painter.drawEllipse(QRectF(pill.left() + 14, pill.center().y() - 4, 8, 8))
         painter.setFont(bold)
-        painter.setPen(QColor(theme.TEXT))
+        painter.setPen(QColor(theme.OVERLAY_TEXT))
         x = pill.left() + 30
         painter.drawText(QRectF(x, pill.top(), width, pill.height()), Qt.AlignmentFlag.AlignVCenter, text)
         if extra:
             x += QFontMetricsF(bold).horizontalAdvance(text) + 10
             painter.setFont(plain)
-            painter.setPen(QColor(theme.MUTED))
+            painter.setPen(QColor(theme.OVERLAY_MUTED))
             painter.drawText(QRectF(x, pill.top(), width, pill.height()), Qt.AlignmentFlag.AlignVCenter, extra)
 
     def _paint_toasts(self, painter: QPainter) -> None:
@@ -342,11 +663,11 @@ class FrameView(QWidget):
             box = metrics.boundingRect(QRectF(0, 0, max_width - 30, 400), int(flags), text)
             rect = QRectF(self._content.left() + 12, bottom - box.height() - 16, box.width() + 30, box.height() + 16)
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(QColor(14, 16, 20, 214))
+            painter.setBrush(QColor(11, 11, 12, 220))
             painter.drawRoundedRect(rect, 10, 10)
             painter.setBrush(QColor(colour))
             painter.drawRoundedRect(QRectF(rect.left() + 8, rect.top() + 8, 3, rect.height() - 16), 1.5, 1.5)
-            painter.setPen(QColor(theme.TEXT))
+            painter.setPen(QColor(theme.OVERLAY_TEXT))
             painter.drawText(QRectF(rect.left() + 20, rect.top(), box.width() + 4, rect.height()), int(flags), text)
             bottom = rect.top() - 8
 
@@ -411,7 +732,7 @@ class CameraPreview(QWidget):
         box = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
         shape = QPainterPath()
         shape.addRoundedRect(box, self.RADIUS, self.RADIUS)
-        painter.fillPath(shape, QColor("#0d0f13"))
+        painter.fillPath(shape, QColor(theme.WELL))
         if self._image is not None and self._image.width() > 0:
             painter.save()
             painter.setClipPath(shape)
@@ -426,9 +747,9 @@ class CameraPreview(QWidget):
                 width = QFontMetricsF(font).horizontalAdvance(self.note) + 16
                 pill = QRectF(box.left() + 8, box.top() + 8, width, 20)
                 painter.setPen(Qt.PenStyle.NoPen)
-                painter.setBrush(QColor(14, 16, 20, 190))
+                painter.setBrush(QColor(11, 11, 12, 190))
                 painter.drawRoundedRect(pill, 10, 10)
-                painter.setPen(QColor(theme.TEXT))
+                painter.setPen(QColor(theme.OVERLAY_TEXT))
                 painter.drawText(pill, Qt.AlignmentFlag.AlignCenter, self.note)
         else:
             painter.setFont(QFont("Segoe UI", 9))
@@ -445,49 +766,158 @@ THUMB_PIXELS = 144   # as miniaturas são guardadas maiores que o desenho, para 
 
 
 def thumbnail(path: str) -> QPixmap:
-    """Miniatura quadrada da foto (recorte central), com cantos arredondados."""
+    """Miniatura quadrada da foto (recorte central)."""
     reader = QImageReader(path)
     reader.setAutoTransform(True)   # respeita a rotação EXIF
     image = reader.read()
     result = QPixmap(THUMB_PIXELS, THUMB_PIXELS)
     result.fill(Qt.GlobalColor.transparent)
-    painter = QPainter(result)
-    painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-    shape = QPainterPath()
-    shape.addRoundedRect(QRectF(0, 0, THUMB_PIXELS, THUMB_PIXELS), THUMB_PIXELS * 0.15, THUMB_PIXELS * 0.15)
-    painter.setClipPath(shape)
     if image.isNull():
-        painter.fillRect(0, 0, THUMB_PIXELS, THUMB_PIXELS, QColor(theme.FIELD))
-    else:
-        side = min(image.width(), image.height())
-        square = image.copy((image.width() - side) // 2, (image.height() - side) // 2, side, side)
-        painter.drawImage(QRectF(0, 0, THUMB_PIXELS, THUMB_PIXELS),
-                          square.scaled(THUMB_PIXELS, THUMB_PIXELS, Qt.AspectRatioMode.KeepAspectRatio,
-                                        Qt.TransformationMode.SmoothTransformation))
+        return result
+    side = min(image.width(), image.height())
+    square = image.copy((image.width() - side) // 2, (image.height() - side) // 2, side, side)
+    painter = QPainter(result)
+    painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+    painter.drawImage(QRectF(0, 0, THUMB_PIXELS, THUMB_PIXELS),
+                      square.scaled(THUMB_PIXELS, THUMB_PIXELS, Qt.AspectRatioMode.KeepAspectRatio,
+                                    Qt.TransformationMode.SmoothTransformation))
     painter.end()
     return result
 
 
+class FaceTile(QAbstractButton):
+    """Um quadradinho da galeria: uma foto, o "sem rosto" ou o botão de adicionar.
+
+    Com o mouse em cima de uma foto aparece um × no canto: clicar nele tira a foto da galeria.
+    """
+
+    removed = Signal()
+    CROSS = 20
+
+    def __init__(self, parent: QWidget, kind: str, picture: Optional[QPixmap] = None) -> None:
+        super().__init__(parent)
+        self.kind, self._picture = kind, picture     # kind: "face", "none" ou "add"
+        self.removable = kind == "face"
+        self._on_cross = False
+        self._cross_pressed = False
+        self.setCheckable(kind != "add")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
+        self.setMouseTracking(True)
+
+    def _cross(self) -> QRectF:
+        return QRectF(self.width() - self.CROSS - 4, 4, self.CROSS, self.CROSS)
+
+    def _over_cross(self, position) -> bool:
+        return self.removable and self._cross().adjusted(-3, -3, 3, 3).contains(QPointF(position))
+
+    def mouseMoveEvent(self, event) -> None:
+        over = self._over_cross(event.position())
+        if over != self._on_cross:
+            self._on_cross = over
+            self.update()
+        super().mouseMoveEvent(event)
+
+    def leaveEvent(self, event) -> None:
+        self._on_cross = False
+        self.update()
+        super().leaveEvent(event)
+
+    def mousePressEvent(self, event) -> None:
+        if event.button() == Qt.MouseButton.LeftButton and self._over_cross(event.position()):
+            self._cross_pressed = True      # o clique é no ×, não na foto
+            return
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:
+        if self._cross_pressed:
+            self._cross_pressed = False
+            if self._over_cross(event.position()):
+                self.removed.emit()
+            return
+        super().mouseReleaseEvent(event)
+
+    def paintEvent(self, _event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+        box = QRectF(self.rect()).adjusted(3, 3, -3, -3)
+        radius = max(6.0, box.width() * 0.17)
+        shape = QPainterPath()
+        shape.addRoundedRect(box, radius, radius)
+        hover = self.underMouse() and self.isEnabled()
+        if self.kind == "face":
+            painter.fillPath(shape, QColor(theme.FIELD))
+            if self._picture is not None:
+                painter.save()
+                painter.setClipPath(shape)
+                painter.drawPixmap(box, self._picture, QRectF(self._picture.rect()))
+                painter.restore()
+        elif self.kind == "none":
+            painter.fillPath(shape, QColor(theme.FIELD))
+            # um rosto vazio riscado: "sem rosto"
+            ink = QColor(theme.TEXT if (self.isChecked() or hover) else theme.MUTED)
+            painter.setPen(QPen(ink, 1.7, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            r = box.width() * 0.24
+            centre = box.center()
+            painter.drawEllipse(centre, r, r)
+            painter.drawLine(QPointF(centre.x() - r * 1.25, centre.y() + r * 1.25),
+                             QPointF(centre.x() + r * 1.25, centre.y() - r * 1.25))
+        else:
+            ink = QColor(theme.TEXT if hover else theme.MUTED)
+            painter.setPen(QPen(QColor(theme.TEXT if hover else theme.BORDER_STRONG), 1.4, Qt.PenStyle.DashLine))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawPath(shape)
+            painter.setPen(QPen(ink, 1.8, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+            arm = box.width() * 0.16
+            painter.drawLine(QPointF(box.center().x() - arm, box.center().y()), QPointF(box.center().x() + arm, box.center().y()))
+            painter.drawLine(QPointF(box.center().x(), box.center().y() - arm), QPointF(box.center().x(), box.center().y() + arm))
+        if self.kind != "add":
+            if self.isChecked():
+                painter.setPen(QPen(QColor(theme.ACCENT), 2.6))
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                painter.drawRoundedRect(QRectF(self.rect()).adjusted(1.3, 1.3, -1.3, -1.3), radius + 2, radius + 2)
+            elif hover:
+                painter.setPen(QPen(QColor(theme.BORDER_STRONG), 1.6))
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                painter.drawRoundedRect(QRectF(self.rect()).adjusted(1.3, 1.3, -1.3, -1.3), radius + 2, radius + 2)
+        if self.removable and hover:
+            cross = self._cross()
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(theme.STOP) if self._on_cross else QColor(11, 11, 12, 215))
+            painter.drawEllipse(cross)
+            painter.setPen(QPen(QColor("#ffffff"), 1.7, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+            arm = self.CROSS * 0.2
+            painter.drawLine(QPointF(cross.center().x() - arm, cross.center().y() - arm),
+                             QPointF(cross.center().x() + arm, cross.center().y() + arm))
+            painter.drawLine(QPointF(cross.center().x() - arm, cross.center().y() + arm),
+                             QPointF(cross.center().x() + arm, cross.center().y() - arm))
+
+
 class FaceGallery(QWidget):
-    """As fotos de rosto já usadas, em miniaturas, mais o botão de adicionar.
+    """As fotos de rosto já usadas, em miniaturas, mais o "sem rosto" e o botão de adicionar.
 
     As miniaturas se ajustam à largura disponível: sempre ``COLUMNS`` por linha,
     do tamanho que couber. Assim a galeria nunca empurra a coluna para fora.
     """
 
     picked = Signal(str)
+    none_picked = Signal()
     add_requested = Signal()
     remove_requested = Signal(str)
 
     COLUMNS = 5
-    GAP = 6
-    SMALLEST, LARGEST = 40, 76
+    GAP = 4
+    SMALLEST, LARGEST = 40, 78
 
     def __init__(self) -> None:
         super().__init__()
-        self._tiles: List[QToolButton] = []
+        self._tiles: List[FaceTile] = []
+        self._by_path: Dict[str, FaceTile] = {}
         self._group = QButtonGroup(self)
         self._group.setExclusive(True)
+        self._locked: Optional[str] = None
         policy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         policy.setHeightForWidth(True)
         self.setSizePolicy(policy)
@@ -518,39 +948,58 @@ class FaceGallery(QWidget):
         for index, button in enumerate(self._tiles):
             row, column = divmod(index, self.COLUMNS)
             button.setGeometry(column * (tile + self.GAP), row * (tile + self.GAP), tile, tile)
-            button.setIconSize(QSize(tile - 8, tile - 8))
 
-    def set_faces(self, paths: List[str], selected: Optional[str]) -> None:
+    def set_faces(self, paths: List[str], selected: Optional[str], none_selected: bool = False) -> None:
         for button in self._tiles:
             self._group.removeButton(button)
+            button.hide()
             button.deleteLater()
-        self._tiles = []
+        self._tiles, self._by_path = [], {}
+
+        none = FaceTile(self, "none")
+        none.setToolTip("Sem rosto: a câmera aparece como é, sem troca")
+        none.setChecked(none_selected and not selected)
+        none.clicked.connect(lambda _checked=False: self.none_picked.emit())
+        self._group.addButton(none)
+        self._tiles.append(none)
         for path in paths:
-            tile = QToolButton(self)
-            tile.setObjectName("face")
-            tile.setCheckable(True)
-            tile.setCursor(Qt.CursorShape.PointingHandCursor)
-            tile.setIcon(QIcon(thumbnail(path)))
-            tile.setToolTip(f"{os.path.basename(path)}\nBotão direito: remover")
+            tile = FaceTile(self, "face", thumbnail(path))
             tile.setChecked(bool(selected) and os.path.normcase(path) == os.path.normcase(selected))
             tile.clicked.connect(lambda _checked=False, p=path: self.picked.emit(p))
+            tile.removed.connect(lambda p=path: self.remove_requested.emit(p))
             tile.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             tile.customContextMenuRequested.connect(lambda _pos, p=path, t=tile: self._menu(p, t))
             self._group.addButton(tile)
             self._tiles.append(tile)
-        add = QToolButton(self)
-        add.setObjectName("addFace")
-        add.setText("+")
-        add.setCursor(Qt.CursorShape.PointingHandCursor)
-        add.setToolTip("Escolher uma foto de rosto")
-        add.clicked.connect(self.add_requested.emit)
+            self._by_path[os.path.normcase(path)] = tile
+        add = FaceTile(self, "add")
+        add.setToolTip("Adicionar uma foto de rosto")
+        add.clicked.connect(lambda _checked=False: self.add_requested.emit())
         self._tiles.append(add)
+        self._apply_lock()
         self._place()
         for button in self._tiles:
             button.show()
         self.updateGeometry()
 
-    def _menu(self, path: str, tile: QToolButton) -> None:
+    def set_locked(self, path: Optional[str]) -> None:
+        """A foto que não pode sair da galeria agora (a que está em uso ao vivo)."""
+        path = os.path.normcase(path) if path else None
+        if path != self._locked:
+            self._locked = path
+            self._apply_lock()
+
+    def _apply_lock(self) -> None:
+        for path, tile in self._by_path.items():
+            tile.removable = path != self._locked
+            name = os.path.basename(path)
+            tile.setToolTip(f"{name}\nEm uso agora: para tirar da galeria, pare a troca ou escolha outro rosto antes."
+                            if not tile.removable else f"{name}\nO × no canto tira a foto da galeria.")
+            tile.update()
+
+    def _menu(self, path: str, tile: FaceTile) -> None:
+        if not tile.removable:
+            return
         menu = QMenu(self)
         remove = menu.addAction("Remover da galeria")
         if menu.exec(tile.mapToGlobal(tile.rect().center())) is remove:
@@ -599,7 +1048,7 @@ class SideScroll(QScrollArea):
         super().wheelEvent(event)
 
 
-# ── botão principal ───────────────────────────────────────────────────────────────────────
+# ── botões ────────────────────────────────────────────────────────────────────────────────
 class PrimaryButton(QAbstractButton):
     """O botão de iniciar e parar: um título e, embaixo, menor, o que mais ele faz."""
 
@@ -632,10 +1081,12 @@ class PrimaryButton(QAbstractButton):
             fill, title, subtitle = QColor(theme.FIELD), QColor(theme.FAINT), QColor(theme.FAINT)
         elif self._stop:
             fill = QColor(theme.STOP_HOVER if hover else theme.STOP)
-            title, subtitle = QColor("#ffffff"), QColor(255, 255, 255, 205)
+            title, subtitle = QColor("#ffffff"), QColor(255, 255, 255, 215)
         else:
             fill = QColor(theme.GO_HOVER if hover else theme.GO)
-            title, subtitle = QColor("#06210f"), QColor(6, 33, 15, 200)
+            title = QColor(theme.ON_GO)
+            subtitle = QColor(title)
+            subtitle.setAlpha(205)
         if self.isDown():
             fill = fill.darker(112)
         painter.setPen(Qt.PenStyle.NoPen)
@@ -657,6 +1108,49 @@ class PrimaryButton(QAbstractButton):
         painter.setPen(subtitle)
         painter.drawText(QRectF(box.left() + 8, box.top() + 34, box.width() - 16, 18), Qt.AlignmentFlag.AlignCenter,
                          self._subtitle)
+
+
+class IconButton(QAbstractButton):
+    """Um botão só com um desenho: a engrenagem das configurações ou a seta de voltar."""
+
+    def __init__(self, kind: str, tip: str) -> None:
+        super().__init__()
+        self._kind = kind            # "gear" ou "back"
+        self.setFixedSize(34, 34)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
+        self.setToolTip(tip)
+        self.setAccessibleName(tip)
+
+    def paintEvent(self, _event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        hover = self.underMouse()
+        if hover or self.isDown():
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(theme.SELECTED if self.isDown() else theme.FIELD))
+            painter.drawRoundedRect(QRectF(self.rect()), 9, 9)
+        ink = QColor(theme.TEXT if hover else theme.MUTED)
+        centre = QPointF(self.width() / 2, self.height() / 2)
+        if self._kind == "gear":
+            painter.setPen(QPen(ink, 2.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+            for tooth in range(8):                      # os dentes
+                angle = tooth * math.pi / 4
+                direction = QPointF(math.cos(angle), math.sin(angle))
+                painter.drawLine(centre + direction * 6.6, centre + direction * 8.4)
+            painter.setPen(QPen(ink, 1.8))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawEllipse(centre, 6.0, 6.0)
+            painter.drawEllipse(centre, 2.3, 2.3)
+        else:
+            painter.setPen(QPen(ink, 1.9, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+            painter.drawLine(QPointF(centre.x() - 6.5, centre.y()), QPointF(centre.x() + 6.5, centre.y()))
+            head = QPainterPath()
+            head.moveTo(centre.x() - 1.5, centre.y() - 5.5)
+            head.lineTo(centre.x() - 7, centre.y())
+            head.lineTo(centre.x() - 1.5, centre.y() + 5.5)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawPath(head)
 
 
 # ── controles ───────────────────────────────────────────────────────────────────────────
@@ -693,7 +1187,7 @@ class Switch(QAbstractButton):
     def paintEvent(self, _event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        off, on = QColor("#3a4152"), QColor(theme.ACCENT)
+        off, on = QColor(theme.SWITCH_OFF), QColor(theme.ACCENT)
         t = self._position
         track = QColor(int(off.red() + (on.red() - off.red()) * t), int(off.green() + (on.green() - off.green()) * t),
                        int(off.blue() + (on.blue() - off.blue()) * t))
@@ -702,7 +1196,9 @@ class Switch(QAbstractButton):
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(track)
         painter.drawRoundedRect(QRectF(0, 0, 40, 22), 11, 11)
-        painter.setBrush(QColor(255, 255, 255, 255 if self.isEnabled() else 120))
+        knob = QColor(theme.KNOB)
+        knob.setAlpha(255 if self.isEnabled() else 120)
+        painter.setBrush(knob)
         painter.drawEllipse(QRectF(3 + 18 * t, 3, 16, 16))
 
 
@@ -717,12 +1213,14 @@ class SwitchRow(QWidget):
         self.switch.toggled.connect(self.toggled.emit)
         self.label = QLabel(label)
         self.label.setObjectName("rowLabel")
+        self.label.setWordWrap(True)
         self.hint = QLabel(hint)
         self.hint.setObjectName("rowHint")
         self.hint.setWordWrap(True)
         self.hint.setVisible(bool(hint))
         top = QHBoxLayout()
         top.setContentsMargins(0, 0, 0, 0)
+        top.setSpacing(10)
         top.addWidget(self.label, 1)
         top.addWidget(self.switch, 0, Qt.AlignmentFlag.AlignVCenter)
         layout = QVBoxLayout(self)
@@ -802,6 +1300,7 @@ class SliderRow(QWidget):
         self.slider.setRange(0, 100)
         self.slider.setValue(value)
         self.slider.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.slider.setFixedHeight(22)   # sem isto, numa coluna apertada o Qt amassa o botão do controle
         self.slider.valueChanged.connect(self._on_change)
         if hint:
             self.setToolTip(hint)
@@ -840,40 +1339,6 @@ class Card(QFrame):
         heading = QLabel(title.upper())
         heading.setObjectName("cardTitle")
         self.body.addWidget(heading)
-
-    def add(self, widget: QWidget) -> None:
-        self.body.addWidget(widget)
-
-
-class CollapsibleCard(QFrame):
-    """Um bloco que abre e fecha ao clicar no título."""
-
-    toggled = Signal(bool)
-
-    def __init__(self, title: str, opened: bool) -> None:
-        super().__init__()
-        self.setObjectName("card")
-        self._title = title.upper()
-        self.header = QPushButton()
-        self.header.setObjectName("cardToggle")
-        self.header.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.header.clicked.connect(lambda: self.set_open(not self._content.isVisible()))
-        self._content = QWidget()
-        self.body = QVBoxLayout(self._content)
-        self.body.setContentsMargins(0, 4, 0, 2)
-        self.body.setSpacing(12)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 12, 14, 12)
-        layout.setSpacing(8)
-        layout.addWidget(self.header)
-        layout.addWidget(self._content)
-        self.set_open(opened, announce=False)
-
-    def set_open(self, opened: bool, announce: bool = True) -> None:
-        self._content.setVisible(opened)
-        self.header.setText(("▾  " if opened else "▸  ") + self._title)
-        if announce:
-            self.toggled.emit(opened)
 
     def add(self, widget: QWidget) -> None:
         self.body.addWidget(widget)

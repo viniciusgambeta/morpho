@@ -1,0 +1,45 @@
+{
+ "version": "2.0.0",
+ "animations": {
+  "parado": {
+   "frames": 144,
+   "columns": 12,
+   "size": 240,
+   "fps": 24,
+   "seconds": 6,
+   "title": "Parado"
+  },
+  "dormindo": {
+   "frames": 120,
+   "columns": 12,
+   "size": 240,
+   "fps": 24,
+   "seconds": 5,
+   "title": "Dormindo"
+  },
+  "gritando": {
+   "frames": 67,
+   "columns": 12,
+   "size": 240,
+   "fps": 24,
+   "seconds": 2.8,
+   "title": "Gritando"
+  },
+  "matrix": {
+   "frames": 144,
+   "columns": 12,
+   "size": 240,
+   "fps": 24,
+   "seconds": 6,
+   "title": "Matrix"
+  },
+  "pilulas": {
+   "frames": 120,
+   "columns": 12,
+   "size": 240,
+   "fps": 24,
+   "seconds": 5,
+   "title": "Pílulas"
+  }
+ }
+}

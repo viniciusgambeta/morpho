@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ganso Morpho · animações</title>
+  <style>
+    :root {
+      --fundo: #ffffff; --painel: #f5f5f7; --texto: #1d1d1f; --suave: #6e6e73; --linha: #d2d2d7;
+      --azul: #0071e3; --palco: #ffffff; --codigo-fundo: #1d1d1f; --codigo-texto: #f5f5f7;
+      color-scheme: light;
+    }
+    :root[data-fundo="escuro"] {
+      --fundo: #0b0b0d; --painel: #1c1c1f; --texto: #f5f5f7; --suave: #a1a1a6; --linha: #3a3a3e;
+      --azul: #2997ff; --palco: #131316; --codigo-fundo: #000000; --codigo-texto: #f5f5f7;
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--fundo); color: var(--texto);
+      font: 16px/1.5 Inter, "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased; transition: background .25s, color .25s;
+    }
+    .pagina { max-width: 1120px; margin: 0 auto; padding: 40px 20px 80px; }
+    header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 28px; }
+    h1 { margin: 0; font-size: clamp(28px, 4vw, 40px); line-height: 1.1; letter-spacing: -.02em; text-wrap: balance; }
+    header p { margin: 8px 0 0; color: var(--suave); max-width: 52ch; }
+    h2 { margin: 56px 0 6px; font-size: 22px; letter-spacing: -.01em; }
+    .nota { margin: 0 0 18px; color: var(--suave); }
+
+    .controles { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .grupo { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--painel); }
+    .grupo button, .botao {
+      font: inherit; font-size: 14px; font-weight: 500; color: var(--texto); background: transparent;
+      border: 0; border-radius: 8px; padding: 7px 12px; cursor: pointer; font-variant-numeric: tabular-nums;
+    }
+    .grupo button[aria-pressed="true"] { background: var(--fundo); box-shadow: 0 1px 3px rgba(0, 0, 0, .18); }
+    .botao { background: var(--painel); padding: 10px 14px; border-radius: 10px; }
+    .botao.principal { background: var(--azul); color: #fff; }
+    .botao:hover, .grupo button:hover { filter: brightness(.96); }
+    button:focus-visible, .cartao:focus-visible { outline: 2px solid var(--azul); outline-offset: 2px; }
+
+    .palco {
+      display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 28px; align-items: center;
+      background: var(--painel); border-radius: 22px; padding: 24px;
+    }
+    .palco > div { min-width: 0; }
+    .palco-ganso { background: var(--palco); border-radius: 16px; display: grid; place-items: center; aspect-ratio: 1; }
+    .palco-ganso morpho-ganso { width: 100%; }
+    .palco h3 { margin: 0; font-size: 28px; letter-spacing: -.015em; }
+    .palco .descricao { margin: 6px 0 16px; color: var(--suave); max-width: 46ch; }
+    .palco .acoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .ciclo { font-size: 13px; color: var(--suave); font-variant-numeric: tabular-nums; margin-left: 8px; font-weight: 400; letter-spacing: 0; }
+
+    pre {
+      margin: 0; padding: 14px 16px; border-radius: 12px; background: var(--codigo-fundo); color: var(--codigo-texto);
+      font: 13px/1.55 "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace; overflow-x: auto; white-space: pre;
+    }
+    code { font-family: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace; font-size: .92em; }
+    p code, li code, td code { background: var(--painel); padding: 1px 6px; border-radius: 6px; }
+
+    .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; margin-top: 20px; }
+    .cartao {
+      display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch;
+      font: inherit; color: inherit; text-align: left; cursor: pointer; padding: 10px 10px 14px;
+      background: var(--painel); border: 2px solid transparent; border-radius: 16px; transition: border-color .15s, transform .15s;
+    }
+    .cartao:hover { transform: translateY(-2px); }
+    .cartao[aria-pressed="true"] { border-color: var(--azul); }
+    .cartao .quadro { background: var(--palco); border-radius: 10px; margin-bottom: 10px; }
+    .cartao morpho-ganso { width: 100%; }
+    .cartao b { display: block; font-size: 15px; font-weight: 600; padding: 0 4px; }
+    .cartao span { display: block; font-size: 12.5px; line-height: 1.35; color: var(--suave); padding: 2px 4px 0; }
+
+    .uso { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+    .uso section { background: var(--painel); border-radius: 16px; padding: 18px; min-width: 0; }
+    .uso h3 { margin: 0 0 4px; font-size: 16px; }
+    .uso p { margin: 0 0 12px; font-size: 14px; color: var(--suave); }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; }
+    td { padding: 7px 10px 7px 0; border-top: 1px solid var(--linha); vertical-align: top; }
+    td:first-child { white-space: nowrap; }
+    .aviso { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
+      background: var(--texto); color: var(--fundo); padding: 9px 16px; border-radius: 99px; font-size: 14px; transition: opacity .2s, transform .2s; }
+    .aviso.visivel { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 760px) {
+      .pagina { padding: 24px 16px 60px; }
+      .palco { grid-template-columns: minmax(0, 1fr); padding: 16px; gap: 18px; }
+      .palco-ganso { max-width: 320px; width: 100%; margin: 0 auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="pagina">
+    <header>
+      <div>
+        <h1>Ganso Morpho</h1>
+        <p>Biblioteca de animações do mascote. Animação programática em canvas, sem dependências: um arquivo, uma tag.</p>
+      </div>
+      <div class="controles" aria-label="Controles da galeria">
+        <div class="grupo" role="group" aria-label="Fundo">
+          <button type="button" data-fundo="claro" aria-pressed="true">Claro</button>
+          <button type="button" data-fundo="escuro" aria-pressed="false">Escuro</button>
+        </div>
+        <div class="grupo" role="group" aria-label="Cores">
+          <button type="button" data-pb="0" aria-pressed="true">Com cor</button>
+          <button type="button" data-pb="1" aria-pressed="false">P&amp;B</button>
+        </div>
+        <div class="grupo" role="group" aria-label="Velocidade">
+          <button type="button" data-vel="0.5" aria-pressed="false">0,5×</button>
+          <button type="button" data-vel="1" aria-pressed="true">1×</button>
+          <button type="button" data-vel="2" aria-pressed="false">2×</button>
+        </div>
+        <button type="button" class="botao" id="pausar" aria-pressed="false">Pausar</button>
+      </div>
+    </header>
+
+    <section class="palco" aria-live="polite">
+      <div class="palco-ganso"><morpho-ganso id="grande" anim="parado"></morpho-ganso></div>
+      <div>
+        <h3><span id="titulo"></span><span class="ciclo" id="ciclo"></span></h3>
+        <p class="descricao" id="descricao"></p>
+        <pre><code id="trecho"></code></pre>
+        <div class="acoes">
+          <button type="button" class="botao principal" id="copiar">Copiar código</button>
+          <button type="button" class="botao" id="reiniciar">Recomeçar</button>
+          <button type="button" class="botao" id="quadros">Baixar quadros (PNG)</button>
+          <button type="button" class="botao" id="video">Gravar vídeo (WebM)</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="grade" id="grade"></div>
+
+    <h2>Como usar</h2>
+    <p class="nota">Três jeitos, do mais prático ao mais solto. A pasta <code>mascote/</code> é tudo o que precisa ir junto.</p>
+    <div class="uso">
+      <section>
+        <h3>1. Com a tag</h3>
+        <p>Inclua o arquivo uma vez e use a tag onde quiser. Trocar o atributo troca a animação.</p>
+        <pre><code>&lt;script src="mascote/ganso.js"&gt;&lt;/script&gt;
+
+&lt;morpho-ganso anim="pensativo"
+  style="width:200px"&gt;&lt;/morpho-ganso&gt;
+
+&lt;script&gt;
+  const g = document.querySelector('morpho-ganso');
+  g.anim = 'gritando';   // troca
+  g.reiniciar();         // volta ao início
+&lt;/script&gt;</code></pre>
+      </section>
+      <section>
+        <h3>2. Por código</h3>
+        <p>Cada animação é uma função do tempo. <code>Ganso.desenhar()</code> pinta o quadro de qualquer instante num canvas seu.</p>
+        <pre><code>const ctx = tela.getContext('2d');
+Ganso.desenhar(ctx, 'matrix', segundos,
+  { tamanho: 512, pb: false });
+
+Ganso.nomes      // ['parado', 'dormindo', …]
+Ganso.animacoes  // título, descrição e ciclo
+g.tempo = 1.5;   // na tag: pula para 1,5 s</code></pre>
+      </section>
+      <section>
+        <h3>3. Como imagem ou vídeo</h3>
+        <p>Onde não dá para rodar JavaScript, use os botões do palco, lá em cima: eles exportam a animação escolhida.</p>
+        <pre><code>Baixar quadros (PNG)
+  todos os quadros de um ciclo numa grade,
+  com fundo transparente, a 24 por segundo
+
+Gravar vídeo (WebM)
+  um ciclo, com o fundo da galeria
+
+mascote/ganso.svg
+  o ganso parado, em vetor</code></pre>
+      </section>
+    </div>
+
+    <h2>Atributos e cores</h2>
+    <p class="nota">Atributos da tag e variáveis CSS que trocam as cores, postas na própria tag ou em qualquer elemento em volta.</p>
+    <div class="uso">
+      <section>
+        <table>
+          <tr><td><code>anim</code></td><td>Nome da animação. Vazio mostra o ganso parado, sem movimento.</td></tr>
+          <tr><td><code>velocidade</code></td><td>Multiplicador. <code>2</code> dobra a velocidade, <code>0.5</code> deixa em câmera lenta.</td></tr>
+          <tr><td><code>pausado</code></td><td>Congela no quadro atual.</td></tr>
+          <tr><td><code>pb</code></td><td>Só preto e branco: sem o vermelho da boca, o azul das lágrimas e as outras cores.</td></tr>
+          <tr><td><code>contorno</code></td><td>Põe um contorno branco em volta, para fundos escuros ou coloridos.</td></tr>
+          <tr><td><code>rotulo</code></td><td>Texto para leitores de tela.</td></tr>
+        </table>
+      </section>
+      <section>
+        <table>
+          <tr><td><code>--ganso-tinta</code></td><td>Preto do desenho.</td></tr>
+          <tr><td><code>--ganso-papel</code></td><td>Branco do bico e dos brilhos.</td></tr>
+          <tr><td><code>--ganso-boca</code>, <code>--ganso-lingua</code></td><td>Dentro do bico.</td></tr>
+          <tr><td><code>--ganso-acento</code></td><td>Vermelho do rosto bravo.</td></tr>
+          <tr><td><code>--ganso-lagrima</code>, <code>--ganso-baba</code></td><td>Lágrimas, suor e baba.</td></tr>
+          <tr><td><code>--ganso-codigo</code></td><td>Chuva de código nas lentes.</td></tr>
+        </table>
+      </section>
+    </div>
+  </div>
+  <div class="aviso" id="aviso" role="status"></div>
+
+  <script src="ganso.js"></script>
+  <script>
+    (function () {
+      var $ = function (id) { return document.getElementById(id); };
+      var grande = $('grande'), grade = $('grade');
+      var estado = { anim: 'parado', vel: 1, pausado: false, escuro: false, pb: false };
+
+      function todos() { return document.querySelectorAll('morpho-ganso'); }
+
+      function trecho(nome) {
+        return '<script src="mascote/ganso.js"><\/script>\n' +
+          '<morpho-ganso anim="' + nome + '"' + (estado.pb ? ' pb' : '') + (estado.escuro ? ' contorno' : '') +
+          ' style="width:200px"></morpho-ganso>';
+      }
+
+      function escolher(nome, rolar) {
+        var a = Ganso.animacoes.filter(function (x) { return x.nome === nome; })[0] || Ganso.animacoes[0];
+        estado.anim = a.nome;
+        grande.anim = a.nome;
+        $('titulo').textContent = a.titulo;
+        $('ciclo').textContent = 'ciclo de ' + String(a.ciclo).replace('.', ',') + ' s';
+        $('descricao').textContent = a.descricao;
+        $('trecho').textContent = trecho(a.nome);
+        grade.querySelectorAll('.cartao').forEach(function (c) {
+          c.setAttribute('aria-pressed', String(c.dataset.anim === a.nome));
+        });
+        try { history.replaceState(null, '', '#' + a.nome); } catch (e) {}
+        if (rolar) document.querySelector('.palco').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      Ganso.animacoes.forEach(function (a) {
+        var c = document.createElement('button');
+        c.type = 'button'; c.className = 'cartao'; c.dataset.anim = a.nome; c.setAttribute('aria-pressed', 'false');
+        c.innerHTML = '<div class="quadro"><morpho-ganso anim="' + a.nome + '"></morpho-ganso></div><b></b><span></span>';
+        c.querySelector('b').textContent = a.titulo;
+        c.querySelector('span').textContent = a.descricao;
+        c.addEventListener('click', function () { escolher(a.nome, true); });
+        grade.appendChild(c);
+      });
+
+      function aplicar() {
+        todos().forEach(function (g) {
+          g.setAttribute('velocidade', estado.vel);
+          g.toggleAttribute('pausado', estado.pausado);
+          g.toggleAttribute('contorno', estado.escuro);
+          g.toggleAttribute('pb', estado.pb);
+        });
+        $('trecho').textContent = trecho(estado.anim);
+        document.querySelectorAll('button[data-pb]').forEach(function (b) {
+          b.setAttribute('aria-pressed', String((b.dataset.pb === '1') === estado.pb));
+        });
+        document.documentElement.dataset.fundo = estado.escuro ? 'escuro' : 'claro';
+        document.querySelectorAll('[data-fundo]').forEach(function (b) {
+          if (b.tagName === 'BUTTON') b.setAttribute('aria-pressed', String((b.dataset.fundo === 'escuro') === estado.escuro));
+        });
+        document.querySelectorAll('[data-vel]').forEach(function (b) {
+          b.setAttribute('aria-pressed', String(+b.dataset.vel === estado.vel));
+        });
+        $('pausar').textContent = estado.pausado ? 'Continuar' : 'Pausar';
+        $('pausar').setAttribute('aria-pressed', String(estado.pausado));
+      }
+
+      document.querySelectorAll('button[data-fundo]').forEach(function (b) {
+        b.addEventListener('click', function () { estado.escuro = b.dataset.fundo === 'escuro'; aplicar(); });
+      });
+      document.querySelectorAll('button[data-vel]').forEach(function (b) {
+        b.addEventListener('click', function () { estado.vel = +b.dataset.vel; aplicar(); });
+      });
+      document.querySelectorAll('button[data-pb]').forEach(function (b) {
+        b.addEventListener('click', function () { estado.pb = b.dataset.pb === '1'; aplicar(); });
+      });
+      $('pausar').addEventListener('click', function () { estado.pausado = !estado.pausado; aplicar(); });
+      $('reiniciar').addEventListener('click', function () { grande.reiniciar(); });
+
+      var relogio;
+      function avisar(texto) {
+        var a = $('aviso'); a.textContent = texto; a.classList.add('visivel');
+        clearTimeout(relogio); relogio = setTimeout(function () { a.classList.remove('visivel'); }, 1600);
+      }
+      $('copiar').addEventListener('click', function () {
+        var texto = trecho(estado.anim);
+        function reserva() {
+          var t = document.createElement('textarea'); t.value = texto; t.style.position = 'fixed'; t.style.opacity = '0';
+          document.body.appendChild(t); t.select();
+          var ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+          t.remove(); avisar(ok ? 'Código copiado' : 'Não deu para copiar; selecione o texto');
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(texto).then(function () { avisar('Código copiado'); }, reserva);
+        } else reserva();
+      });
+      function baixar(blob, nome) {
+        var url = URL.createObjectURL(blob), a = document.createElement('a');
+        a.href = url; a.download = nome; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+        avisar(nome + ' baixado');
+      }
+      function ciclo() { return Ganso.animacoes.filter(function (x) { return x.nome === estado.anim; })[0].ciclo; }
+
+      // todos os quadros de um ciclo numa grade só, com fundo transparente
+      $('quadros').addEventListener('click', function () {
+        var fps = 24, lado = 256, n = Math.round(ciclo() * fps), col = Math.ceil(Math.sqrt(n)), lin = Math.ceil(n / col);
+        var tela = document.createElement('canvas'), ctx = tela.getContext('2d');
+        tela.width = col * lado; tela.height = lin * lado;
+        for (var i = 0; i < n; i++) {
+          ctx.save(); ctx.translate((i % col) * lado, Math.floor(i / col) * lado);
+          ctx.beginPath(); ctx.rect(0, 0, lado, lado); ctx.clip();
+          Ganso.desenhar(ctx, estado.anim, i / fps, { tamanho: lado, pb: estado.pb });
+          ctx.restore();
+        }
+        tela.toBlob(function (b) { baixar(b, 'ganso-' + estado.anim + '-' + n + 'quadros-' + col + 'x' + lin + '-' + fps + 'fps.png'); });
+      });
+
+      // um ciclo gravado em vídeo, em tempo real, com o fundo da galeria
+      $('video').addEventListener('click', function () {
+        if (!window.MediaRecorder) { avisar('Este navegador não grava vídeo'); return; }
+        var lado = 512, dur = ciclo(), tela = document.createElement('canvas'), ctx = tela.getContext('2d'), nome = estado.anim;
+        tela.width = tela.height = lado;
+        var fundo = getComputedStyle(document.documentElement).getPropertyValue('--palco').trim() || '#fff';
+        var grav = new MediaRecorder(tela.captureStream(30), { videoBitsPerSecond: 4e6 }), partes = [], ini = 0;
+        grav.ondataavailable = function (e) { if (e.data.size) partes.push(e.data); };
+        grav.onstop = function () { $('video').disabled = false; baixar(new Blob(partes, { type: 'video/webm' }), 'ganso-' + nome + '.webm'); };
+        $('video').disabled = true; avisar('Gravando ' + String(dur).replace('.', ',') + ' s…');
+        (function passo(agora) {
+          if (!ini) { ini = agora; grav.start(); }
+          var t = (agora - ini) / 1000;
+          ctx.fillStyle = fundo; ctx.fillRect(0, 0, lado, lado);
+          Ganso.desenhar(ctx, nome, Math.min(t, dur), { tamanho: lado, pb: estado.pb });
+          if (t < dur) requestAnimationFrame(passo); else grav.stop();
+        })(performance.now());
+      });
+
+      function doEndereco() { return decodeURIComponent(location.hash.slice(1)) || 'parado'; }
+      window.addEventListener('hashchange', function () { if (doEndereco() !== estado.anim) escolher(doEndereco()); });
+      escolher(doEndereco());
+      aplicar();
+    })();
+  </script>
+</body>
+</html>

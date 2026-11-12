@@ -25,41 +25,46 @@ Depois de instalado (`C:\Users\vinic\dlc-lab\dist\instalador\MorphoSetup.exe`), 
 "Morpho" do menu Iniciar ou da área de trabalho. Sem instalar, dois cliques em `Morpho.exe`
 na pasta do pacote (`C:\Users\vinic\dlc-lab\dist\Morpho`). Na pasta de desenvolvimento o
 equivalente é `Morpho.bat`, que usa o ambiente do laboratório.
-Enquanto os modelos carregam, o palco mostra uma barra de progresso (o ritmo dela vem de
-quanto a abertura levou da última vez).
+Enquanto os modelos carregam, o palco mostra o mascote (o ganso, com a chuva de código do
+"Matrix" nas lentes) e uma barra de progresso (o ritmo dela vem de quanto a abertura levou
+da última vez). Quando termina, o ganso dá um pulinho, grita (com som, que dá para desligar
+nas configurações) e o passo a passo aparece.
 
 A janela tem dois lados. **O palco, à esquerda, é a saída:** a imagem com o rosto trocado,
 a mesma que os outros programas recebem. Antes de a troca começar ele mostra um passo a
-passo, com o que já está feito marcado. **A coluna, à direita, são as escolhas:**
+passo, com o que já está feito marcado. **A coluna, à direita, tem só o essencial:**
 
 1. **Rosto:** clique no `+` (ou arraste uma foto para a janela). As fotos usadas ficam
-   numa galeria; clicar em outra troca o rosto na hora, mesmo ao vivo. Botão direito numa
-   miniatura remove da galeria. Foto em close funciona; foto sem rosto é recusada com aviso.
-2. **Câmera:** a lista mostra as câmeras do computador, e logo abaixo aparece a prévia da
-   escolhida, pequena, com o selo "só você vê": a imagem crua, para saber qual câmera é
-   qual e se enquadrar. Ela nunca vai para a câmera virtual, e continua ali com a troca
-   ligada (o antes, ao lado do depois). Qualidade (Leve, Padrão, Nítida) e espelhamento
-   ficam embaixo. "Mostrar a prévia da câmera" desligado deixa a câmera apagada até a
-   troca começar; com a janela minimizada a prévia também desliga a câmera.
-3. **Saída:**
-   - *Câmera virtual:* com ela marcada, a troca aparece nos outros programas como a câmera
-     **"Morpho Camera"**: é só escolhê-la no Meet, Zoom, Discord ou OBS. Enquanto a troca
-     não está ligada, quem escolheu essa câmera vê uma tela escura de "Câmera em pausa",
-     então dá para deixar o outro programa pronto antes. A coluna avisa quando algum
-     programa está de fato recebendo a imagem. Pode ser ligada e desligada ao vivo.
-   - *Borrar se a troca falhar:* se o rosto não for encontrado (mão na frente, cabeça
-     muito virada, pessoa fora do quadro), a imagem sai borrada em vez de mostrar o rosto
-     real. Vem ligado. Vale para o palco e para a câmera virtual.
-4. **Ajustes** (cartão recolhido; valem na hora, mesmo ao vivo):
-   - *Nitidez:* realça os detalhes do rosto trocado.
-   - *Intensidade da troca:* 100% mostra só o rosto escolhido; abaixo disso ele se mistura
-     com o seu.
-   - *Minha boca* e *Meus olhos:* deixam a sua boca e os seus olhos de verdade aparecerem.
-     A fala e o olhar ficam mais naturais, mas essas partes passam a ser as suas.
-5. **Trocar rostos / Parar** (o botão grande, fixo embaixo): a troca e a câmera virtual só
-   funcionam entre um e outro. A linha menor do botão diz o que mais ele faz ("e iniciar
-   câmera virtual"). Como a câmera já está aberta na prévia, a troca começa na hora.
+   numa galeria; clicar em outra troca o rosto na hora, mesmo ao vivo. Com o mouse sobre
+   uma foto aparece um `×` no canto, que a tira da galeria (o arquivo original não é
+   apagado); a foto em uso ao vivo não tem o `×`. O primeiro quadradinho, um círculo
+   riscado, é o **"sem rosto"**: a câmera sai como é, sem troca e sem borrão, também ao
+   vivo. Foto em close funciona; foto sem rosto é recusada com aviso.
+2. **Câmera:** a lista mostra as câmeras do computador. Se houver mais de uma webcam de
+   verdade e nenhuma lembrada, a lista fica em "Escolha a câmera". Depois da escolha
+   aparecem a prévia (pequena, com o selo "só você vê": a imagem crua, que nunca vai para a
+   câmera virtual) e a qualidade (Leve, Padrão, Nítida).
+3. **O botão grande**, fixo embaixo: "Troque o meu rosto", com a linha menor "e inicie a
+   câmera virtual"; ao vivo vira "Parar", em vermelho. Com o "sem rosto" escolhido ele diz
+   "Iniciar sem troca". Como a câmera já está aberta na prévia, a troca começa na hora.
    Fechar a janela desliga tudo.
+
+A engrenagem no alto da coluna abre as **configurações** (a seta volta); tudo ali vale na
+hora, mesmo ao vivo:
+
+- **Saída:** *Enviar para a câmera virtual* (a troca aparece nos outros programas como a
+  câmera **"Morpho Camera"**: é só escolhê-la no Meet, Zoom, Discord ou OBS; enquanto a
+  troca não está ligada, quem a escolheu vê "Câmera em pausa") e *Borrar se a troca falhar*
+  (rosto não encontrado: a imagem sai borrada em vez de mostrar o rosto real; vem ligado).
+- **Câmera:** *Espelhar a imagem* e *Mostrar a prévia da câmera* (desligada, a câmera só
+  liga quando a troca começa; com a janela minimizada a prévia também desliga a câmera).
+- **Ajustes da troca:** *Nitidez*, *Intensidade da troca*, *Minha boca* e *Meus olhos*
+  (as duas últimas deixam a sua boca e os seus olhos de verdade aparecerem).
+- **Na tela:** *Mostrar os quadros por segundo* (no selo "AO VIVO" e no rodapé), *Mostrar
+  quantos rostos há no enquadramento* (no selo e em aviso; vem desligado, porque um pôster
+  na parede deixaria o aviso fixo) e *Mostrar os detalhes técnicos* (o painel com os
+  números descritos mais abaixo).
+- **Aparência:** tema *Escuro* (o padrão) ou *Claro*, e o *Grito do ganso ao abrir*.
 
 Com a troca ao vivo, dois botões aparecem sobre o vídeo:
 
@@ -67,19 +72,38 @@ Com a troca ao vivo, dois botões aparecem sobre o vídeo:
 - **Borrar agora** (tecla B): borra tudo na hora, no palco e na câmera virtual, até
   clicar de novo. Para quando for preciso sair da frente da câmera.
 
-`Esc` para a troca. As escolhas (galeria, câmera, qualidade, ajustes, posição da janela)
-são lembradas.
+`Esc` para a troca. As escolhas (galeria, câmera, qualidade, ajustes, tema, posição da
+janela) são lembradas.
 
-Avisos aparecem sobre o vídeo, em linguagem simples: câmera lenta, placa de vídeo
-limitada, mais de um rosto no quadro, computador ocupado com outra tarefa pesada.
-"Detalhes", no rodapé, abre o painel com os números descritos mais abaixo.
+Avisos aparecem sobre o vídeo, em linguagem simples: placa de vídeo em modo de economia
+(vem primeiro: corta os quadros por segundo quase pela metade), câmera lenta, computador
+ocupado com outra tarefa pesada.
+
+### Identidade visual e mascote
+
+Preto, branco e tons de cinza, com o verde reservado para o que está ligado, escolhido ou
+pronto, e o vermelho só para parar. Nada de azul ou roxo. As cores dos dois temas estão em
+`app/ui/theme.py`.
+
+O símbolo é o ganso de óculos (`app/ui/assets/ganso.svg`, cópia de `mascote/ganso.svg`).
+**Em fundo escuro ele aparece sempre dentro de um bloco branco de cantos arredondados**; é
+esse bloco o ícone do app, do instalador e do diagnóstico (`packaging/make_icon.py`).
+
+As animações do mascote são desenhadas por código em `mascote/ganso.js`. O app usa só as
+que o Vinicius liberou: **Parado**, **Dormindo** e **Gritando** em preto e branco, **Matrix**
+e **Pílulas** com cor, sempre na versão de fundo claro dentro do bloco branco.
+`packaging/make_mascot.py` gera uma imagem por animação (todos os quadros de um ciclo numa
+grade) em `app/ui/assets/mascote/`; quem desenha é o Chrome, sem janela. Onde aparecem:
+Matrix na abertura e enquanto a troca inicia; Gritando quando a abertura termina; Pílulas
+enquanto falta escolher o rosto; Parado com tudo pronto e no cabeçalho; Dormindo se o motor
+parar. A passagem de uma para outra tem um pulinho (`Mascot.switch` em `app/ui/widgets.py`).
 
 Capturas da interface em `docs/telas/`.
 
 ## A câmera virtual "Morpho Camera"
 
-É um filtro DirectShow próprio (`MorphoCamera64.dll` e `MorphoCamera32.dll`), derivado do
-filtro do [Unity Capture](https://github.com/schellingb/UnityCapture) (licença MIT). O
+É um filtro DirectShow próprio (`MorphoCamera64-N.dll` e `MorphoCamera32-N.dll`, N = revisão),
+derivado do filtro do [Unity Capture](https://github.com/schellingb/UnityCapture) (licença MIT). O
 código, com as mudanças, está em `vendor/morphocam`; `vendor\morphocam\build.cmd` compila
 os dois arquivos para `C:\Users\vinic\dlc-lab\morphocam` (precisa do Visual Studio 2019
 Build Tools).
@@ -93,10 +117,43 @@ Build Tools).
   (`app/engine/morphocam.py`). O filtro oferece de 144p a 1080p e o app já envia no
   tamanho que o outro programa pediu; sem imagem do app, o filtro mostra "Câmera em
   pausa". O envio custa menos de 1 ms por quadro em 720p.
+- **Carimbos de tempo (revisão 2):** cada quadro sai carimbado com a hora real em que chegou
+  do app. O filtro original contava quadros (quadro N = N × 1/30 s), e o Chrome acreditava:
+  para cumprir os 24 quadros por segundo que o Meet pede, descartava 1 a cada 5, mesmo com
+  o app entregando só 20. Medido: a 20 por segundo chegavam 16, com buracos de 100 ms;
+  agora chegam os 20. Com o motor de verdade (22 trocas por segundo num rosto em
+  movimento), 17 viraram 21,6.
+- **Revisão no nome do arquivo:** um programa de vídeo com a câmera aberta segura o arquivo
+  do filtro. Por isso a revisão faz parte do nome (`FILTER_REVISION` em `morphocam.py` e
+  `REV` em `build-one.cmd`, o mesmo número): a versão nova instala ao lado, o registro passa
+  a apontar para ela e vale na próxima vez que a câmera for aberta. Os arquivos antigos são
+  apagados quando ninguém mais os segura. Mudou o filtro? Suba o número nos dois lugares.
 - **Diagnóstico:** com a variável de ambiente `MORPHO_CAMERA_LOG` apontando para um
   arquivo, o filtro anota ali o que o programa de vídeo pede (formatos, conexão).
 - **Reserva:** se os arquivos da câmera não existirem, o app usa a câmera virtual do OBS
   Studio, se ele estiver instalado.
+
+### Medir a câmera virtual como o Meet a recebe
+
+`bench/vcam/run.py` abre um Chrome à parte (perfil temporário), com os mesmos pedidos de
+câmera que o Google Meet faz, numa página que mede os quadros como chegam (local) e depois
+de uma chamada WebRTC feita dentro da própria página (o que os outros veem). Usa uma câmera
+de **teste**, "Morpho Camera Teste", compilada com `build-one.cmd 64 <pasta> /DMORPHO_TEST`:
+outro nome, outro identificador e outra memória compartilhada, então a câmera real, o app
+aberto e a webcam não são tocados.
+
+    <python do motor> bench/vcam/run.py --dll PASTA\MorphoCamera64-2.dll --pattern steady:20 --mode meet
+    <python do motor> bench/vcam/run.py --dll PASTA\MorphoCamera64-2.dll --pattern engine --mode meet --window
+
+`--pattern steady:N` e `jitter:N` enviam um padrão com o número do quadro escrito em blocos
+(dá para contar os que se perdem); `engine` liga o motor de verdade trocando o rosto num
+vídeo gravado. Armadilha: duas câmeras com o mesmo "DevicePath" no registro são a mesma
+câmera para o Chrome (ele abre a primeira).
+
+O que mais derruba a fluidez neste notebook não é a câmera virtual: é a placa de vídeo presa
+em 780 MHz (de 2100) pelo perfil de energia, que deixa a troca em cerca de 22 por segundo
+num rosto em movimento. O app avisa na tela; a solução é o modo de desempenho no programa
+do fabricante (aqui, o Avell Custom Control).
 
 ## O pacote (`Morpho.exe`) e o instalador
 
@@ -106,7 +163,7 @@ virtual (`camera`). Cerca de 6 GB, quase tudo bibliotecas da NVIDIA (CUDA, cuDNN
 
     packaging\launcher\build.cmd                 compila o Morpho.exe (ícone em packaging\make_icon.py)
     vendor\morphocam\build.cmd                   compila a câmera virtual
-    <python do motor> packaging\build.py         monta a pasta em C:\Users\vinic\dlc-lab\dist\Morpho
+    <python do motor> packaging\build.py --all-gpus   monta a pasta em C:\Users\vinic\dlc-lab\dist\Morpho
     <python do motor> packaging\make_installer.py   gera o instalador em C:\Users\vinic\dlc-lab\dist\instalador
 
 - **`Morpho.exe`** carrega o Python do pacote dentro do próprio processo e roda a janela.
@@ -132,6 +189,16 @@ virtual (`camera`). Cerca de 6 GB, quase tudo bibliotecas da NVIDIA (CUDA, cuDNN
   tira a câmera virtual do Windows. Os modelos já otimizados só são instalados em
   computador com a mesma placa de vídeo em que foram criados; nos outros, o app otimiza
   na primeira abertura (alguns minutos, uma vez).
+- **A cara do instalador:** a tela de boas-vindas e a de conclusão têm uma faixa escura com
+  o ganso no bloco branco; nas outras, o ganso fica no canto de cima, animado ("Parado", 12
+  quadros por segundo). O Inno Setup não anima imagens: um temporizador no `[Code]` do
+  roteiro troca a imagem do canto pelo quadro seguinte. As imagens estão em
+  `packaging/installer/arte` e são geradas por `packaging/make_installer_art.py` (só é
+  preciso rodar de novo se o mascote mudar).
+- **Sobras de versões antigas:** `build.py` reaproveita a pasta do pacote, então apaga dela o
+  que saiu do projeto (pasta `app`) e as revisões antigas da câmera virtual. Se um programa
+  aberto ainda segura o arquivo antigo da câmera (qualquer um que tenha listado as câmeras:
+  navegador, app de chamada), ele é movido para `dist\sobras` em vez de ir no instalador.
 
 ## A página e o diagnóstico
 
@@ -173,7 +240,7 @@ preview.bat --source "C:\caminho\foto.jpg" --camera "HD Webcam" --autostart
 ```
 
 - `--source`, `--camera`, `--resolution`, `--mirror`: pré-selecionam o que na tela se
-  escolhe com o mouse. `--autostart` clica em Trocar rostos sozinho.
+  escolhe com o mouse. `--autostart` clica no botão de iniciar sozinho. `--theme` e `--open-settings` abrem num tema e já nas configurações; `--quit-after-load` fecha logo depois da abertura (para capturar o grito do mascote).
 - `--set chave=valor`: opção do motor, por exemplo `--set reprojection=true`.
 - `--replay video.avi`: usa um vídeo no lugar da câmera.
 - `--record`: grava 40 s dos quadros crus da câmera (antes da troca), com um roteiro de
@@ -183,8 +250,10 @@ preview.bat --source "C:\caminho\foto.jpg" --camera "HD Webcam" --autostart
   `--screenshot`: para testes automáticos.
 
 `bench/engine_protocol_test.py` exercita o motor sem janela (42 verificações, incluindo
-ler a câmera virtual de volta como um app de chamada faria) e `bench/track_eval.py` mede
-o descolamento numa gravação.
+ler a câmera virtual de volta como um app de chamada faria), `bench/ui_smoke_test.py` abre a
+janela sem mostrá-la e clica como uma pessoa (29 conferências: "sem rosto", o × da galeria,
+configurações, temas, o grito do mascote) e `bench/track_eval.py` mede o descolamento numa
+gravação.
 
 ## O que os detalhes técnicos mostram
 
@@ -240,26 +309,29 @@ app/
     events.py      eventos do motor para a janela (linhas JSON)
     trackdump.py   registro opcional de posições, para medir o descolamento
   ui/            processo da janela
-    main_window.py   a tela: rosto, câmera, saída, ajustes, Trocar rostos/Parar
-    widgets.py       palco, prévia da câmera, galeria, botão principal, controles
-    assets/          o símbolo do app
+    main_window.py   a tela: rosto, câmera, o botão de iniciar e a página de configurações
+    widgets.py       mascote, palco, prévia da câmera, galeria, botão principal, controles
+    assets/          o ganso (símbolo), as animações do mascote e o som do grito
     theme.py         cores, medidas e folha de estilo
     diagnostics.py   avisos, detalhes técnicos e resumo das medições
     settings.py      o que é lembrado entre aberturas
     engine_process.py  inicia o motor e converte a saída dele em sinais
   shared_frame.py  o quadro mais recente em memória compartilhada
 vendor/morphocam/  código do filtro da câmera virtual e script de compilação
-packaging/         Morpho.exe (launcher), montagem do pacote (build.py) e roteiro do instalador
+packaging/         Morpho.exe (launcher), montagem do pacote (build.py), roteiro do instalador,
+                   ícone (make_icon.py) e animações do mascote (make_mascot.py)
+mascote/           o mascote: desenho, animações em JavaScript e a galeria delas (index.html)
 diagnostico/       o programa de diagnóstico de compatibilidade (e de download do instalador)
 site/              a página do Morpho, publicada na Vercel
-bench/           scripts e resultados de medição (ver bench/RESULTADOS.md)
+bench/           scripts e resultados de medição (ver bench/RESULTADOS.md); vcam/ mede a câmera
+                   virtual como o Meet a recebe; ui_smoke_test.py clica na janela de verdade
 Morpho.bat           abre o app com dois cliques
 preview.bat          abre com terminal e opções de teste
 ```
 
 Dois processos de propósito: a janela não disputa CPU com o pipeline, e a saída não
 depende de nenhuma janela estar aberta (o que a câmera virtual precisa). O motor carrega
-os modelos uma vez e fica em espera; por isso trocar de rosto e clicar em Trocar rostos
+os modelos uma vez e fica em espera; por isso trocar de rosto e clicar em “Troque o meu rosto”
 respondem na hora. São dois canais de imagem para a janela: a saída (o palco) e a câmera
 crua em tamanho pequeno (a prévia da coluna). Na prévia só o segundo anda: não há troca
 nem câmera virtual.
