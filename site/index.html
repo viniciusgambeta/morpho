@@ -13,7 +13,10 @@
   <meta property="og:image" content="https://morpho.medaumexemplo.com/assets/og.png">
   <meta property="og:url" content="https://morpho.medaumexemplo.com/">
   <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -57,7 +60,7 @@
         <div class="compare" id="compare" role="slider" aria-label="Comparar a câmera original com a imagem do Morpho" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" tabindex="0">
           <!-- o quadro inicial de cada metade; o vídeo é desenhado por cima quando carrega -->
           <img src="/assets/demo/antes.webp" alt="Gravação original da câmera" width="1280" height="720">
-          <img class="after" id="compare-after" src="/assets/demo/depois-1.webp" alt="A mesma gravação com o rosto trocado pelo Morpho" width="1280" height="720">
+          <img class="after" id="compare-after" src="/assets/demo/depois-3.webp" alt="A mesma gravação com o rosto trocado pelo Morpho" width="1280" height="720">
           <canvas id="compare-canvas" width="1280" height="720" aria-hidden="true"></canvas>
           <span class="tag l">Sua câmera</span>
           <span class="tag r">Com o Morpho</span>
@@ -67,13 +70,12 @@
       </div>
       <div class="pick rise d5" id="pick" role="group" aria-label="Rosto usado na demonstração">
         <span class="pick-label">Troque o rosto</span>
-        <button type="button" class="on" data-face="1" aria-pressed="true" aria-label="Rosto 1"><img src="/assets/demo/rosto-1.webp" alt="" width="64" height="64"></button>
+        <button type="button" data-face="1" aria-pressed="false" aria-label="Rosto 1"><img src="/assets/demo/rosto-1.webp" alt="" width="64" height="64"></button>
         <button type="button" data-face="2" aria-pressed="false" aria-label="Rosto 2"><img src="/assets/demo/rosto-2.webp" alt="" width="64" height="64"></button>
-        <button type="button" data-face="3" aria-pressed="false" aria-label="Rosto 3"><img src="/assets/demo/rosto-3.webp" alt="" width="64" height="64"></button>
+        <button type="button" class="on" data-face="3" aria-pressed="true" aria-label="Rosto 3"><img src="/assets/demo/rosto-3.webp" alt="" width="64" height="64"></button>
         <button type="button" data-face="4" aria-pressed="false" aria-label="Rosto 4"><img src="/assets/demo/rosto-4.webp" alt="" width="64" height="64"></button>
         <button type="button" data-face="5" aria-pressed="false" aria-label="Rosto 5"><img src="/assets/demo/rosto-5.webp" alt="" width="64" height="64"></button>
       </div>
-      <p class="caption">Arraste a barra para comparar. Gravação real processada pelo motor do Morpho, com os ajustes de fábrica. Rostos usados com autorização.</p>
     </section>
 
     <section class="statement">
@@ -141,7 +143,7 @@
                 </ol>
               </div>
               <div class="mock-screen">
-                <img id="mock-after" src="/assets/demo/depois-1.webp" alt="" width="1280" height="720" loading="lazy">
+                <img id="mock-after" src="/assets/demo/depois-3.webp" alt="" width="1280" height="720" loading="lazy">
                 <canvas id="mock-live" width="1280" height="720"></canvas>
                 <span class="mock-badge"><i></i><b>AO VIVO</b>30 fps</span>
                 <span class="mock-tools"><span>Tirar foto</span><span>Borrar agora</span></span>
@@ -208,7 +210,7 @@
               <li><b>Disco</b><span>13 GB livres</span></li>
               <li><b>Câmera</b><span>Qualquer webcam</span></li>
             </ul>
-            <div class="only"><svg fill="currentColor"><use href="#nvidia"/></svg><span>Não funciona com placas AMD ou Intel, nem em Mac. Até agora o desempenho foi medido numa RTX 3060 de notebook; nas outras placas é estimativa.</span></div>
+            <div class="only"><svg fill="currentColor"><use href="#nvidia"/></svg><span>Não funciona com placas AMD ou Intel, nem em Mac.</span></div>
           </article>
           <article class="tile reveal">
             <h3>O diagnóstico responde.</h3>
@@ -253,12 +255,18 @@
 
     <section class="final" id="baixar">
       <div class="wrap">
-        <div class="mark duck reveal"><svg><use href="#morpho-tile"/></svg></div>
-        <h2 class="reveal">Morpho. Grátis.</h2>
-        <p class="sub reveal">Um download pequeno confere o seu PC e cuida do resto.</p>
-        <a class="pill pill-lg pill-light reveal" href="/downloads/MorphoDiagnostico.exe" download data-download>
-          <svg fill="currentColor"><use href="#windows"/></svg>Baixar para Windows
-        </a>
+        <div class="duo reveal" aria-hidden="true">
+          <span class="duo-a"><span class="duck"><svg><use href="#morpho-tile"/></svg></span></span>
+          <span class="duo-b"><img src="/assets/comunidade.webp" alt="" width="256" height="256" loading="lazy"></span>
+        </div>
+        <h2 class="reveal"><span class="dim">Um projeto da comunidade</span> Me dá um Exemplo.</h2>
+        <p class="sub reveal">O Morpho foi idealizado e pensado pela gente, e é gratuito. Um download pequeno confere o seu PC e cuida do resto.</p>
+        <div class="final-cta reveal">
+          <a class="pill pill-lg pill-light" href="/downloads/MorphoDiagnostico.exe" download data-download>
+            <svg fill="currentColor"><use href="#windows"/></svg>Baixar para Windows
+          </a>
+          <a class="pill pill-lg pill-ghost" href="https://www.medaumexemplo.com/" target="_blank" rel="noopener">Conhecer a comunidade</a>
+        </div>
         <p class="hero-note reveal">MorphoDiagnostico.exe · 294 KB · Windows 10 e 11 · requer NVIDIA</p>
         <p class="soon" id="soon" hidden><b>O instalador (4 GB) entra no ar em breve.</b> O diagnóstico já funciona: teste o seu PC agora e volte para baixar o Morpho.</p>
         <div class="flow reveal">

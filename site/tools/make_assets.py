@@ -8,6 +8,10 @@ O símbolo (o ganso de óculos) vem de ``mascote/ganso.svg`` e é a única fonte
 ``index.html`` e ``faq.html``. Em fundo escuro o símbolo vai sempre dentro de um bloco branco
 de cantos arredondados; por isso o ícone da aba já traz o bloco.
 
+O ícone da aba sai também nos formatos que o SVG não cobre: ``favicon.ico`` (16, 32 e 48, que
+é o endereço que navegadores e buscadores pedem por conta própria), ``apple-touch-icon.png``
+(180, quadrado cheio: o iPhone arredonda sozinho) e ``icon-192.png``.
+
 Com a pasta de capturas (app_ao_vivo.png e diagnostico.png), grava também as versões leves
 delas. As imagens e os vídeos da demonstração são feitos por ``make_demo_video.py``.
 """
@@ -69,6 +73,52 @@ def logos() -> None:
         print(f"{name}: símbolo atualizado")
 
 
+def icons() -> None:
+    """O ícone da aba em .ico e em PNG, desenhado a partir de ``favicon.svg``."""
+    import struct
+
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtCore import QBuffer, QByteArray, QIODevice, QRectF, Qt
+    from PySide6.QtGui import QColor, QGuiApplication, QImage, QPainter
+    from PySide6.QtSvg import QSvgRenderer
+
+    app = QGuiApplication.instance() or QGuiApplication(sys.argv[:1])   # noqa: F841
+    renderer = QSvgRenderer(os.path.join(SITE, "favicon.svg"))
+
+    def draw(size: int, square: bool = False) -> QImage:
+        # Desenha grande e reduz: os tamanhos pequenos saem mais limpos assim.
+        big = max(size * 4, 256)
+        image = QImage(big, big, QImage.Format.Format_ARGB32)
+        image.fill(QColor("#ffffff") if square else Qt.GlobalColor.transparent)
+        painter = QPainter(image)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        renderer.render(painter, QRectF(0, 0, big, big))
+        painter.end()
+        return image.scaled(size, size, Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation)
+
+    def png(image: QImage) -> bytes:
+        data = QByteArray()
+        buffer = QBuffer(data)
+        buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+        image.save(buffer, "PNG")
+        buffer.close()
+        return bytes(data)
+
+    sizes = (16, 32, 48)
+    images = [png(draw(size)) for size in sizes]
+    offset = 6 + 16 * len(sizes)
+    ico = struct.pack("<HHH", 0, 1, len(sizes))
+    for size, data in zip(sizes, images):
+        ico += struct.pack("<BBBBHHII", size, size, 0, 0, 1, 32, len(data), offset)
+        offset += len(data)
+    with open(os.path.join(SITE, "favicon.ico"), "wb") as f:
+        f.write(ico + b"".join(images))
+    print(f"favicon.ico: {', '.join(str(size) for size in sizes)} px, {offset / 1024:.1f} KB")
+    for name, size, square in (("apple-touch-icon.png", 180, True), ("icon-192.png", 192, False)):
+        draw(size, square).save(os.path.join(SITE, name))
+        print(f"{name}: {size}x{size}")
+
+
 def og() -> None:
     """A imagem que aparece quando o link é compartilhado (1200 x 630): símbolo, nome e chamada."""
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -76,7 +126,7 @@ def og() -> None:
     from PySide6.QtGui import QColor, QFont, QFontDatabase, QGuiApplication, QImage, QPainter
     from PySide6.QtSvg import QSvgRenderer
 
-    app = QGuiApplication(sys.argv[:1])   # noqa: F841
+    app = QGuiApplication.instance() or QGuiApplication(sys.argv[:1])   # noqa: F841
     # Sem tela o Qt não enxerga as fontes do Windows: sem isto o texto sai em quadradinhos.
     fonts = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts")
     for name in ("segoeui.ttf", "segoeuib.ttf"):
@@ -125,6 +175,7 @@ def webp(source: str, name: str, width: int | None = None, quality: int = 86) ->
 def main() -> int:
     os.makedirs(ASSETS, exist_ok=True)
     logos()
+    icons()
     og()
     if len(sys.argv) > 1:
         captures = os.path.abspath(sys.argv[1])

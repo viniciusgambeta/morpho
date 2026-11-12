@@ -73,11 +73,14 @@
   // ---- a gravação da demonstração --------------------------------------------------------------
   // Cada arquivo traz o original em cima e a troca embaixo, no mesmo quadro. As duas metades são
   // desenhadas a partir de um vídeo só, então nunca saem de sincronia. Há um arquivo por rosto:
-  // só o primeiro é carregado de início; os outros, quando alguém escolhe. Com "reduzir
+  // o do rosto marcado na página é carregado de início; assim que ele toca, os outros são
+  // baixados inteiros em segundo plano, para a troca de rosto ser na hora. Com "reduzir
   // movimento" ligado nenhum vídeo é carregado e a página mostra o quadro inicial.
   var demo = (function () {
     var WIDE = 1280, HALF = 720;
-    var videos = {}, active = null, wanted = 0, current = 1;
+    var chosen = document.querySelector("#pick button.on");
+    var videos = {}, active = null, wanted = 0, current = chosen ? parseInt(chosen.getAttribute("data-face"), 10) : 1;
+    var files = {}, fetches = {}, warmed = false;   // arquivos já inteiros na memória e os que estão a caminho
     var views = [], listeners = [], looping = false, dirty = true, drawn = -1;
     var quiet = function () {};
     function emit(what, face) { listeners.forEach(function (fn) { fn(what, face); }); }
@@ -124,6 +127,35 @@
       paint();
       emit("ready", face);
     }
+    function source(face) { return "/assets/demo/troca-" + face + ".mp4"; }
+    // Baixa o arquivo inteiro e o guarda na memória: o vídeo feito a partir dele abre e acha
+    // qualquer ponto sem voltar à rede.
+    function fetchFile(face) {
+      if (!fetches[face]) {
+        fetches[face] = fetch(source(face)).then(function (response) {
+          if (!response.ok) throw new Error(response.status);
+          return response.blob();
+        }).then(function (blob) {
+          files[face] = URL.createObjectURL(blob);
+          return true;
+        }).catch(function () { delete fetches[face]; return false; });
+      }
+      return fetches[face];
+    }
+    // Os outros rostos, um arquivo por vez, a começar pelos vizinhos do que está tocando.
+    function warm(faces) {
+      var slow = navigator.connection && /2g|3g/.test(navigator.connection.effectiveType || "");
+      if (warmed || !api.auto || slow || !window.fetch || !window.URL) return;
+      warmed = true;
+      var order = faces.filter(function (face) { return face !== current; });
+      order.sort(function (a, b) { return Math.abs(a - current) - Math.abs(b - current) || a - b; });
+      var next = function () {
+        if (!order.length) return;
+        var face = order.shift();
+        if (videos[face] || files[face]) next(); else fetchFile(face).then(next);
+      };
+      setTimeout(next, 600);
+    }
     function make(face) {
       var video = document.createElement("video");
       video.muted = true; video.defaultMuted = true; video.loop = true; video.playsInline = true;
@@ -132,16 +164,25 @@
       video.tabIndex = -1; video.disablePictureInPicture = true;
       video.style.cssText = "position:absolute;inset:0;width:100%;height:100%;opacity:0;pointer-events:none";
       video.preload = "auto";
-      video.src = "/assets/demo/troca-" + face + ".mp4";
+      video.src = files[face] || source(face);
       videos[face] = video;
       mount(video);
       return video;
     }
     function use(face, silent) {
       if (reduced) { wanted = current = face; emit("ready", face); return; }
-      if (face === wanted && videos[face]) return;      // já é o atual, ou já está a caminho
+      if (face === wanted && (videos[face] || fetches[face])) return;   // já é o atual, ou já está a caminho
       wanted = face;
       if (!silent) emit("loading", face);
+      // O arquivo deste rosto está no meio do download em segundo plano: espera por ele em vez
+      // de pedir de novo. (Se o download falhar, o vídeo é aberto direto da rede.)
+      if (!videos[face] && fetches[face] && !files[face]) {
+        fetches[face].then(function () { if (wanted === face && !videos[face]) attach(face); });
+        return;
+      }
+      attach(face);
+    }
+    function attach(face) {
       var video = videos[face] || make(face);
       var ready = function () {
         if (wanted !== face) return;
@@ -166,9 +207,10 @@
       start(video);
     }
     document.addEventListener("visibilitychange", sync);
-    return {
+    var api = {
       WIDE: WIDE, HALF: HALF,
       use: use,
+      warm: warm,
       // com "economia de dados" ligada o vídeo só é baixado quando o visitante toca na demonstração
       auto: !reduced && !(navigator.connection && navigator.connection.saveData),
       face: function () { return current; },
@@ -179,6 +221,7 @@
       // um toque do visitante: se o navegador tinha segurado o vídeo, agora ele pode tocar
       poke: function () { var video = active || videos[wanted]; if (video && video.paused && wantsPlay()) start(video); }
     };
+    return api;
   })();
 
   // ---- antes e depois ------------------------------------------------------------------------
@@ -220,7 +263,7 @@
       }, { threshold: 0.05 }).observe(compare);
     } else {
       hero.visible = true;
-      if (demo.auto) demo.use(1, true);
+      if (demo.auto) demo.use(demo.face(), true);
     }
     // o seletor de rostos
     var buttons = pick ? Array.prototype.slice.call(pick.querySelectorAll("button")) : [];
@@ -230,7 +273,9 @@
         demo.poke();
       });
     });
+    var faces = buttons.map(function (button) { return parseInt(button.getAttribute("data-face"), 10); });
     demo.on(function (what, face) {
+      if (what === "ready") demo.warm(faces);        // o primeiro vídeo está tocando: busca os outros
       buttons.forEach(function (button) {
         var mine = parseInt(button.getAttribute("data-face"), 10) === face;
         if (what === "loading") button.classList.toggle("wait", mine);
