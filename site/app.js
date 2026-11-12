@@ -332,26 +332,32 @@
     }
   }
 
-  // ---- os três passos, na maquete da janela do app ----------------------------------------------
-  // Estados: 0 nada escolhido; 1 rosto escolhido; 2 câmera escolhida (a prévia aparece);
-  // 3 no ar (o palco mostra a troca). Sem animação, a maquete fica parada no estado 3.
-  // A maquete é filmada por uma "câmera": o conteúdo é aproximado e deslocado dentro da lente
-  // para mostrar de perto o que importa em cada passo, com desfoque na direção do movimento.
+  // ---- os quatro passos, na maquete da janela do app e na chamada --------------------------------
+  // Estados do app: 0 nada escolhido; 1 rosto escolhido; 2 câmera escolhida (a prévia aparece);
+  // 3 no ar (o palco mostra a troca). O passo 4 acontece numa chamada: uma janela do Meet sobe
+  // por cima do app (data-call: "webcam", "menu", "switch" e "morpho") e a câmera é trocada lá.
+  // Sem animação, a maquete fica parada no estado 3, sem a chamada.
+  // As duas janelas são filmadas por uma "câmera": o conteúdo é aproximado e deslocado dentro da
+  // lente para mostrar de perto o que importa em cada passo, com desfoque na direção do movimento.
   // (num escopo próprio: são muitos nomes, e nenhum pode trombar com os do resto da página)
   (function () {
     var mock = $("mock");
     if (!mock) return;
-    var lens = $("mock-lens"), body = $("mock-body");
     var live = $("mock-live"), cam = $("mock-cam"), pointer = $("mock-cursor"), ping = $("mock-ping");
     var livePen = live.getContext("2d"), camPen = cam.getContext("2d");
     var thumbs = Array.prototype.slice.call($("mock-faces").querySelectorAll("[data-face]"));
     var select = $("mock-select"), go = $("mock-button"), mockAfter = $("mock-after"), statusLine = $("mock-status");
     var faceCard = $("mock-faces").parentNode, cameraCard = select.parentNode.parentNode, foot = go.parentNode;
     var blurNode = $("mock-blur-node");
+    var callLive = $("meet-live"), callPen = callLive ? callLive.getContext("2d") : null;
+    var callCaret = $("meet-caret"), callMenu = $("meet-menu"), callOption = $("meet-morpho"), callTile = $("meet-tile");
+    // cada janela tem a sua lente e o seu conteúdo; a câmera trabalha sobre a que for pedida
+    var APP = { lens: $("mock-lens"), body: $("mock-body"), view: { x: 0, y: 0, z: 1 }, shot: 0 };
+    var CALL = { lens: $("meet-lens"), body: $("meet-body"), view: { x: 0, y: 0, z: 1 }, shot: 0 };
     // a frase embaixo do botão, como no app
     var STATUS = ["Escolha uma foto de rosto para começar.", "Escolha a câmera.", "Tudo pronto.", "Ao vivo · 30 quadros por segundo."];
     var stepList = $("steps") ? $("steps").children : [];
-    var state = 3, waits = [], running = false;
+    var state = 3, call = "", waits = [], running = false;
     var wait = function (fn, ms) { waits.push(setTimeout(fn, ms)); };
     // preenche a tela com a metade pedida do arquivo (0 = original, 1 = troca), recortando as sobras
     var cover = function (context, target, video, half) {
@@ -365,8 +371,17 @@
       draw: function (video) {
         if (state >= 2) { cover(camPen, cam, video, 0); cam.classList.add("on"); }
         if (state >= 3) { cover(livePen, live, video, 1); live.classList.add("on"); }
+        // na chamada: a webcam como ela é, até a "Morpho Camera" ser escolhida
+        if (call && callPen) { cover(callPen, callLive, video, call === "morpho" ? 1 : 0); callLive.classList.add("on"); }
       }
     });
+    // os passos escritos em cima da maquete: qual está em curso e quantos já foram
+    var marks = function (now, done) {
+      for (var i = 0; i < stepList.length; i++) {
+        stepList[i].classList.toggle("now", i === now);
+        stepList[i].classList.toggle("done", i < done);
+      }
+    };
     var show = function (next, animated) {
       state = next;
       mock.setAttribute("data-state", next);
@@ -374,30 +389,39 @@
       thumbs.forEach(function (thumb) {
         thumb.classList.toggle("on", next >= 1 && parseInt(thumb.getAttribute("data-face"), 10) === demo.face());
       });
-      for (var i = 0; i < stepList.length; i++) {
-        stepList[i].classList.toggle("now", !!animated && i === next);
-        stepList[i].classList.toggle("done", !!animated && i < next);
-      }
+      if (animated) marks(next, next); else marks(-1, 0);
       if (next < 2) cam.classList.remove("on");
       if (next < 3) live.classList.remove("on");
+      demo.refresh();
+    };
+    // a chamada: "" fecha a janela do Meet
+    var ring = function (next) {
+      call = next;
+      if (next) mock.setAttribute("data-call", next); else mock.removeAttribute("data-call");
+      if (!next && callLive) callLive.classList.remove("on");
       demo.refresh();
     };
 
     // -- a câmera -------------------------------------------------------------------------------
     var FULL = { x: 0, y: 0, z: 1 };
-    var view = { x: 0, y: 0, z: 1 }, shot = 0;
-    var place = function (c) {
-      body.style.transform = "translate(" + c.x.toFixed(2) + "px," + c.y.toFixed(2) + "px) scale(" + c.z.toFixed(4) + ")";
+    var place = function (rig, c) {
+      rig.body.style.transform = "translate(" + c.x.toFixed(2) + "px," + c.y.toFixed(2) + "px) scale(" + c.z.toFixed(4) + ")";
     };
     // onde a peça está dentro do conteúdo, sem contar aproximação nenhuma
-    var spot = function (el) {
+    var spot = function (rig, el) {
       var x = 0, y = 0, node = el;
-      while (node && node !== body) { x += node.offsetLeft; y += node.offsetTop; node = node.offsetParent; }
+      while (node && node !== rig.body) { x += node.offsetLeft; y += node.offsetTop; node = node.offsetParent; }
       return { x: x, y: y, w: el.offsetWidth, h: el.offsetHeight };
     };
+    // onde a lente fica dentro da moldura da maquete (é nas medidas dela que o cursor anda)
+    var origin = function (rig) {
+      var x = 0, y = 0, node = rig.lens;
+      while (node && node !== mock) { x += node.offsetLeft; y += node.offsetTop; node = node.offsetParent; }
+      return { x: x, y: y };
+    };
     // a câmera que põe a peça no centro, ocupando `fill` da lente (sem mostrar nada fora da janela)
-    var frameOn = function (el, fill, most, least) {
-      var W = body.offsetWidth, H = body.offsetHeight, b = spot(el);
+    var frameOn = function (rig, el, fill, most, least) {
+      var W = rig.body.offsetWidth, H = rig.body.offsetHeight, b = spot(rig, el);
       var z = clamp(fill * Math.min(W / b.w, H / b.h), least || 1, most);
       return {
         x: clamp(W / 2 - (b.x + b.w / 2) * z, W - W * z, 0),
@@ -405,24 +429,25 @@
         z: z
       };
     };
-    // um ponto da peça, visto pela câmera `c`, nas medidas da janela (é onde o cursor vai)
-    var seen = function (el, c, fx, fy) {
-      var b = spot(el);
-      return { x: lens.offsetLeft + (b.x + b.w * fx) * c.z + c.x, y: lens.offsetTop + (b.y + b.h * fy) * c.z + c.y };
+    // um ponto da peça, visto pela câmera `c`, nas medidas da moldura (é onde o cursor vai)
+    var seen = function (rig, el, c, fx, fy) {
+      var b = spot(rig, el), o = origin(rig);
+      return { x: o.x + (b.x + b.w * fx) * c.z + c.x, y: o.y + (b.y + b.h * fy) * c.z + c.y };
     };
     var swing = function (t) { return t < 0.5 ? 16 * t * t * t * t * t : 1 - Math.pow(-2 * t + 2, 5) / 2; };
     // leva a câmera até `to`. Nos movimentos rápidos a imagem borra na direção em que anda,
     // tanto quanto a velocidade do quadro; nos lentos (`calm`) não há desfoque.
-    var fly = function (to, ms, calm) {
-      var from = { x: view.x, y: view.y, z: view.z }, mine = ++shot, began = null, last = from, before = null;
+    var fly = function (rig, to, ms, calm) {
+      var from = { x: rig.view.x, y: rig.view.y, z: rig.view.z }, mine = ++rig.shot, began = null, last = from, before = null;
+      var body = rig.body;
       if (!calm && blurNode) body.style.filter = "url(#mock-blur)";
       var step = function (time) {
-        if (mine !== shot) return;
+        if (mine !== rig.shot) return;
         if (began === null) { began = time; before = time; }
         var t = clamp((time - began) / ms, 0, 1), k = calm ? smooth(t) : swing(t);
         var now = { x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k, z: from.z + (to.z - from.z) * k };
-        place(now);
-        view = now;
+        place(rig, now);
+        rig.view = now;
         if (!calm && blurNode) {
           var frames = Math.max(0.25, (time - before) / 16.7);          // quantos quadros de 60 Hz se passaram
           var grow = Math.abs(now.z - last.z);
@@ -438,11 +463,11 @@
       };
       requestAnimationFrame(step);
     };
-    var wide = function () {             // volta ao plano geral sem movimento
-      shot++;
-      view = { x: 0, y: 0, z: 1 };
-      place(view);
-      body.style.filter = "";
+    var wide = function (rig) {          // volta ao plano geral sem movimento
+      rig.shot++;
+      rig.view = { x: 0, y: 0, z: 1 };
+      place(rig, rig.view);
+      rig.body.style.filter = "";
       if (blurNode) blurNode.setAttribute("stdDeviation", "0 0");
     };
     var aim = function (at) { pointer.style.transform = "translate(" + at.x.toFixed(1) + "px," + at.y.toFixed(1) + "px)"; };
@@ -459,17 +484,42 @@
       el.classList.add("press");
       wait(function () { el.classList.remove("press"); }, 240);
     };
-    // um passo: a câmera vai até `area`, o cursor chega em `el`, clica, e a tela muda de estado
+    // um passo no app: a câmera vai até `area`, o cursor chega em `el`, clica, e a tela muda de estado
     var beat = function (at, area, el, next, fx) {
-      var narrow = body.offsetWidth < 560;
+      var narrow = APP.body.offsetWidth < 560;
       // em tela estreita o cartão já ocupa a largura toda: a câmera só encosta, sem cortar nada
-      var to = frameOn(area, narrow ? 0.98 : 0.82, narrow ? 1.45 : 2.15, narrow ? 1 : 1.5), target = seen(el, to, fx, 0.6);
-      wait(function () { fly(to, 780); aim(target); }, at);
+      var to = frameOn(APP, area, narrow ? 0.98 : 0.82, narrow ? 1.45 : 2.15, narrow ? 1 : 1.5), target = seen(APP, el, to, fx, 0.6);
+      wait(function () { fly(APP, to, 780); aim(target); }, at);
       wait(function () { press(el, target); show(next, true); }, at + 1000);
+    };
+    // o passo 4, na chamada: a janela do Meet sobe com a webcam, a câmera chega perto do menu de
+    // câmeras, o cursor escolhe a "Morpho Camera" e o plano abre para mostrar o rosto trocado
+    var dial = function (at) {
+      var near = FULL, caret, option;
+      wait(function () { ring("webcam"); }, at);
+      wait(function () {
+        var narrow = CALL.body.offsetWidth < 560;
+        near = frameOn(CALL, callMenu, narrow ? 0.72 : 0.42, narrow ? 1.5 : 2.1, narrow ? 1.1 : 1.3);
+        caret = seen(CALL, callCaret, near, 0.5, 0.55);
+        pointer.style.opacity = "1";
+        aim({ x: caret.x + mock.offsetWidth * 0.12, y: caret.y - mock.offsetHeight * 0.2 });
+      }, at + 900);
+      wait(function () { fly(CALL, near, 820); aim(caret); }, at + 1300);
+      wait(function () { press(callCaret, caret); ring("menu"); }, at + 2350);
+      wait(function () { option = seen(CALL, callOption, near, 0.32, 0.55); aim(option); }, at + 2950);
+      wait(function () { press(callOption, option); ring("switch"); }, at + 3900);
+      wait(function () { ring("morpho"); marks(-1, stepList.length); pointer.style.opacity = "0"; }, at + 4550);
+      wait(function () { fly(CALL, FULL, 950); }, at + 5050);
+      wait(function () {                                  // e chega um pouco mais perto, devagar, sem perder os botões de vista
+        var z = 1.035;
+        fly(CALL, { x: -CALL.body.offsetWidth * (z - 1) / 2, y: 0, z: z }, 4300, true);
+      }, at + 6100);
     };
     var act = function () {
       var thumb = thumbs[demo.face() - 1] || thumbs[0];
-      wide();
+      wide(APP);
+      ring("");
+      wait(function () { wide(CALL); }, 1000);            // só depois de a janela da chamada descer
       show(0, true);
       pointer.style.opacity = "1";
       aim({ x: mock.offsetWidth * 0.5, y: mock.offsetHeight * 0.62 });
@@ -477,13 +527,15 @@
       beat(2500, cameraCard, select, 2, 0.4);             // 2. a câmera (a prévia aparece)
       beat(4700, foot, go, 3, 0.5);                       // 3. o botão
       wait(function () { pointer.style.opacity = "0"; }, 6000);
-      wait(function () { fly(FULL, 900); }, 6150);        // abre o plano: a troca no palco
-      wait(function () { fly(frameOn(live.parentNode, 1.06, 1.22, 1.08), 6400, true); }, 7250);   // e chega perto, devagar
-      wait(act, 13900);
+      wait(function () { fly(APP, FULL, 900); }, 6150);   // abre o plano: a troca no palco
+      wait(function () { fly(APP, frameOn(APP, live.parentNode, 1.06, 1.22, 1.08), 3200, true); }, 7250);   // e chega perto, devagar
+      if (callPen) { dial(9900); wait(act, 20600); }      // 4. a chamada
+      else wait(act, 13900);
     };
     demo.on(function (what, face) {
       if (what !== "ready") return;
       if (mockAfter) mockAfter.src = "/assets/demo/depois-" + face + ".webp";
+      if ($("meet-after")) $("meet-after").src = "/assets/demo/depois-" + face + ".webp";
       thumbs.forEach(function (thumb) {
         thumb.classList.toggle("on", state >= 1 && parseInt(thumb.getAttribute("data-face"), 10) === face);
       });
@@ -502,13 +554,87 @@
             running = false;
             waits.forEach(clearTimeout);
             waits = [];
-            wide();
+            wide(APP);
+            wide(CALL);
+            ring("");
+            pointer.style.opacity = "0";
           }
           demo.refresh();
         });
       }, { threshold: 0.3 }).observe(mock);
-      window.addEventListener("resize", function () { if (!running) wide(); });
+      window.addEventListener("resize", function () { if (!running) { wide(APP); wide(CALL); } });
     }
+  })();
+
+  // ---- o diagnóstico rodando --------------------------------------------------------------------
+  // A página já traz o resultado final. A animação apaga tudo e confere item por item, com a nota
+  // subindo junto, como o programa faz. Com "reduzir movimento" fica o resultado, parado.
+  (function () {
+    var box = $("diag");
+    if (!box || reduced || !("IntersectionObserver" in window)) return;
+    var rows = Array.prototype.slice.call($("diag-list").children);
+    var arc = $("diag-arc"), num = $("diag-num"), verdict = $("diag-verdict"), detail = $("diag-detail");
+    var SCORE = parseInt(num.textContent, 10), FINAL = [verdict.textContent, detail.textContent];
+    var timers = [], playing = false, shown = SCORE, counting = 0;
+    var later = function (fn, ms) { timers.push(setTimeout(fn, ms)); };
+    // o anel anda pelo CSS; o número conta até o mesmo valor
+    var score = function (value) {
+      var from = shown, began = null;
+      arc.style.strokeDashoffset = 100 - value;
+      cancelAnimationFrame(counting);
+      var step = function (time) {
+        if (began === null) began = time;
+        var t = clamp((time - began) / 380, 0, 1);
+        shown = Math.round(from + (value - from) * smooth(t));
+        num.textContent = shown;
+        if (t < 1) counting = requestAnimationFrame(step);
+      };
+      counting = requestAnimationFrame(step);
+    };
+    var settle = function () {           // o resultado final, como veio na página
+      cancelAnimationFrame(counting);
+      box.classList.remove("run");
+      rows.forEach(function (row) { row.className = ""; });
+      verdict.textContent = FINAL[0];
+      detail.textContent = FINAL[1];
+      shown = SCORE;
+      num.textContent = SCORE;
+      arc.style.strokeDashoffset = "";
+    };
+    var play = function () {
+      cancelAnimationFrame(counting);
+      box.classList.remove("done");
+      box.classList.add("run");
+      rows.forEach(function (row) { row.className = "wait"; });
+      verdict.textContent = "Conferindo o seu computador…";
+      detail.textContent = "Leva só alguns segundos.";
+      shown = 0;
+      num.textContent = "0";
+      arc.style.strokeDashoffset = 100;
+      rows.forEach(function (row, i) {
+        later(function () { row.className = "busy"; }, 800 + i * 540);
+        later(function () { row.className = "ok"; score(Math.round(SCORE * (i + 1) / rows.length)); }, 800 + i * 540 + 400);
+      });
+      var end = 800 + rows.length * 540 + 250;
+      later(function () {
+        box.classList.remove("run");
+        box.classList.add("done");
+        verdict.textContent = FINAL[0];
+        detail.textContent = FINAL[1];
+      }, end);
+      later(play, end + 5400);
+    };
+    new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting && !playing) { playing = true; play(); }
+        else if (!entry.isIntersecting && playing) {
+          playing = false;
+          timers.forEach(clearTimeout);
+          timers = [];
+          settle();
+        }
+      });
+    }, { threshold: 0.35 }).observe(box);
   })();
 
   // ---- animação do aviso do Windows ------------------------------------------------------------
